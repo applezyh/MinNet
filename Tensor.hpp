@@ -272,6 +272,9 @@ namespace minnet
         mutable std::vector<float> _grad = {};
         mutable std::shared_ptr<_Tensor> dy_dx = nullptr;
 
+        mutable std::shared_ptr<_Tensor> dy_dx1 = nullptr;
+        mutable std::shared_ptr<_Tensor> dy_dx2 = nullptr;
+
         mutable int opeartor = -1;
 
         mutable bool _require_grad = true;

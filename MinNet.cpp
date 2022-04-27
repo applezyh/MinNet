@@ -119,18 +119,20 @@ int main() {
             in.from_vector_2d(data, j, j + 1);
             minnet::Tensor real;
             real.from_vector_2d(label, j, j + 1);
+
             minnet::Tensor result = in.dot2d(k) + b;
             result = (result - result.max()).rpow(2.718281828459f) / (result - result.max()).rpow(2.718281828459f).rowsum();
             real.reshape(1, 10);
             minnet::Tensor loss = (real - result).pow(2.f);
+
             loss.zero_grad();
             loss.backward();
 
             for (auto it1 = k.begin(), it2 = k.grad_begin(); it1 != k.end(); it1++, it2++) {
-                *it1 = *it1 - 0.001 * *it2;
+                *it1 = *it1 - 0.001f * *it2;
             }
             for (auto it1 = b.begin(), it2 = b.grad_begin(); it1 != b.end(); it1++, it2++) {
-                *it1 = *it1 - 0.001 * *it2;
+                *it1 = *it1 - 0.001f * *it2;
             }
         }
         std::cout << "epoch: " << i + 1 << std::endl;
