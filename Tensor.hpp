@@ -354,6 +354,13 @@ namespace minnet
             return _tensor->end();
         }
 
+        std::vector<float>::iterator begin() const {
+            return _tensor->begin();
+        }
+        std::vector<float>::iterator end() const {
+            return _tensor->end();
+        }
+
         std::vector<float>::iterator grad_begin() {
             return _tensor->grad_begin();
         }

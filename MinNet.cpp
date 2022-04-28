@@ -11,6 +11,7 @@
 
 template<typename T1, typename T2, typename T3>
 void shuffle(std::vector<T1>& v1, std::vector<T2>& v2, std::vector<T3>& v3) {
+    if (!(v1.size() == v2.size() && v2.size() == v3.size() && v1.size() == v3.size())) return;
     for (int i = 0; i < v1.size(); i++) {
         int t1 = rand() % v1.size(), t2 = rand() % v1.size();
 
@@ -28,12 +29,20 @@ void shuffle(std::vector<T1>& v1, std::vector<T2>& v2, std::vector<T3>& v3) {
     }
 }
 
-template<typename T>
-int argMax(std::vector<T>& v) {
-    T& max = v[0];
+template<typename T> 
+concept Iteratable = requires (const T& value) {
+    value.begin();
+    value.end();
+};
+
+template<typename T> requires Iteratable<T>
+int argMax(const T& v) {
+    if (v.begin() == v.end()) return -1;
+    float max = *(v.begin());
     int index = 0;
-    for (int i = 0; i < v.size(); i++) {
-        if (max < v[i]) max = v[i], index = i;
+    int i = 0;
+    for (auto it = v.begin(); it != v.end(); it++, i++) {
+        if (max < *it) max = *it, index = i;
     }
     return index;
 }
@@ -54,58 +63,16 @@ int main() {
     }
 
 
-    minnet::Tensor k(784, 10);
-    minnet::Tensor b(1, 10);
-    k.rand();
+    minnet::Tensor k1(784, 10);
+    minnet::Tensor b1(1, 10);
+
+    minnet::Tensor k2(10, 10);
+    minnet::Tensor b2(1, 10);
+    k1.rand();
+    k2.rand();
     int count = 0;
+    float lr = 0.001f;
     ::shuffle(data, label, src_data);
-    for (int j = 0; j < 1000; j++) {
-        minnet::Tensor in;
-        in.from_vector_2d(data, j, j + 1);
-        minnet::Tensor real;
-        real.from_vector_2d(label, j, j + 1);
-        minnet::Tensor result = in.dot2d(k) + b;
-        real.reshape(1, 10);
-        float max = -1.f;
-        int index = 0;
-        int i = 0;
-        for (auto it1 = result.begin(); it1 != result.end(); it1++) {
-            if (*it1 > max) max = *it1, index = i;
-            i++;
-        }
-        max = -1.f;
-        int real_index = 0;
-        i = 0;
-        for (auto it1 = real.begin(); it1 != real.end(); it1++) {
-            if (*it1 > max) max = *it1, real_index = i;
-            i++;
-        }
-        if (index == real_index) count++;
-    }
-    std::cout <<"without train: " << count / 1000.f << std::endl;
-
-    for (int j = 0; j < 10; j++) {
-        minnet::Tensor in;
-        in.from_vector_2d(data, j, j + 1);
-        minnet::Tensor real;
-        real.from_vector_2d(label, j, j + 1);
-        minnet::Tensor result = in.dot2d(k) + b;
-        real.reshape(1, 10);
-        float max = -1.f;
-        int index = 0;
-        int i = 0;
-        for (auto it1 = result.begin(); it1 != result.end(); it1++) {
-            if (*it1 > max) max = *it1, index = i;
-            i++;
-        }
-        cv::Mat temp;
-        cv::resize(src_data[j].second, temp, cv::Size(224, 224));
-        cv::imshow("result", temp);
-        std::cout << index << std::endl;
-        cv::waitKey(0);
-    }
-    cv::destroyWindow("result");
-
     for (int i = 0; i < 5 ; i++) {
         ::shuffle(data, label, src_data);
         for (int j = 0; j < 60000; j++) {
@@ -114,67 +81,51 @@ int main() {
             minnet::Tensor real;
             real.from_vector_2d(label, j, j + 1);
 
-            minnet::Tensor result = in.dot2d(k) + b;
+            minnet::Tensor result = in.dot2d(k1) + b1;
+            result = minnet::Relu(result);
+            result = result.dot2d(k2) + b2;
             real.reshape(1, 10);
             minnet::Tensor loss = minnet::CrossEntropyLoss(result, real);
 
             loss.zero_grad();
             loss.backward();
 
-            for (auto it1 = k.begin(), it2 = k.grad_begin(); it1 != k.end(); it1++, it2++) {
-                *it1 = *it1 - 0.001f * *it2;
+            for (auto it1 = k1.begin(), it2 = k1.grad_begin(); it1 != k1.end(); it1++, it2++) {
+                *it1 = *it1 - lr * *it2;
             }
-            for (auto it1 = b.begin(), it2 = b.grad_begin(); it1 != b.end(); it1++, it2++) {
-                *it1 = *it1 - 0.001f * *it2;
+            for (auto it1 = b1.begin(), it2 = b1.grad_begin(); it1 != b1.end(); it1++, it2++) {
+                *it1 = *it1 - lr * *it2;
             }
+            for (auto it1 = k2.begin(), it2 = k2.grad_begin(); it1 != k2.end(); it1++, it2++) {
+                *it1 = *it1 - lr * *it2;
+            }
+            for (auto it1 = b2.begin(), it2 = b2.grad_begin(); it1 != b2.end(); it1++, it2++) {
+                *it1 = *it1 - lr * *it2;
+            }
+        }
+        if ((i + 1) % 5 == 0) {
+            lr /= 2;
         }
         std::cout << "epoch: " << i + 1 << std::endl;
     }
-    for (int j = 0; j < 20; j++) {
-        minnet::Tensor in;
-        in.from_vector_2d(data, j, j + 1);
-        minnet::Tensor real;
-        real.from_vector_2d(label, j, j + 1);
-        minnet::Tensor result = in.dot2d(k) + b;
-        real.reshape(1, 10);
-        float max = -1.f;
-        int index = 0;
-        int i = 0;
-        for (auto it1 = result.begin(); it1 != result.end(); it1++) {
-            if (*it1 > max) max = *it1, index = i;
-            i++;
-        }
-        cv::Mat temp;
-        cv::resize(src_data[j].second, temp, cv::Size(224, 224));
-        cv::imshow("result", temp);
-        std::cout << index << std::endl;
-        cv::waitKey(0);
-    }
-    cv::destroyWindow("result");
     count = 0;
-    ::shuffle(data, label, src_data);
     for (int j = 0; j < 60000; j++) {
         minnet::Tensor in;
         in.from_vector_2d(data, j, j + 1);
         minnet::Tensor real;
         real.from_vector_2d(label, j, j + 1);
-        minnet::Tensor result = in.dot2d(k) + b;
-        real.reshape(1, 10);
-        float max = -1.f;
-        int index = 0;
-        int i = 0;
-        for (auto it1 = result.begin(); it1 != result.end(); it1++) {
-            if (*it1 > max) max = *it1, index = i;
-            i++;
+        minnet::Tensor result = in.dot2d(k1) + b1;
+        result = minnet::Relu(result);
+        result = result.dot2d(k2) + b2;
+        if (j < 20) {
+            cv::Mat temp;
+            cv::resize(src_data[j].second, temp, cv::Size(224, 224));
+            cv::imshow("result", temp);
+            std::cout << argMax(result) << std::endl;
+            cv::waitKey(0);
+            cv::destroyWindow("result");
         }
-        max = -1.f;
-        int real_index = 0;
-        i = 0;
-        for (auto it1 = real.begin(); it1 != real.end(); it1++) {
-            if (*it1 > max) max = *it1, real_index = i;
-            i++;
-        }
-        if (index == real_index) count++;
+        if (argMax(result) == argMax(real)) count++;
     }
     std::cout << "after train: " << count / 60000.f << std::endl;
     return 0;

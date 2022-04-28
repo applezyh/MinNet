@@ -675,11 +675,11 @@ namespace minnet
         case DIV: {
             if (operand1 && operand2) {
                 std::vector<float> div_dy_dx = std::vector<float>(operand1->_size);
-                for (int i = 0; i < _size; i++) {
+                for (int i = 0; i < div_dy_dx.size(); i++) {
                     div_dy_dx[i] = 1.f / (operand2->_data[i] + delta);
                 }
                 operand1->backward(grad, div_dy_dx);
-                for (int i = 0; i < _size; i++) {
+                for (int i = 0; i < div_dy_dx.size(); i++) {
                     div_dy_dx[i] = -1.f * operand1->_data[i] / (operand2->_data[i] * operand2->_data[i] + delta);
                 }
                 operand2->backward(grad, div_dy_dx);
@@ -689,9 +689,9 @@ namespace minnet
                 operand1->backward(grad, div_dy_dx);
             }
             else if (operand2) {
-                std::vector<float> div_dy_dx = std::vector<float>(operand1->_size);
-                for (int i = 0; i < _size; i++) {
-                    div_dy_dx[i] = 1.f * const_operand1 / (operand2->_data[i] * operand2->_data[i] + delta);
+                std::vector<float> div_dy_dx = std::vector<float>(operand2->_size);
+                for (int i = 0; i < div_dy_dx.size(); i++) {
+                    div_dy_dx[i] = -1.f * const_operand1 / (operand2->_data[i] * operand2->_data[i] + delta);
                 }
                 operand2->backward(grad, div_dy_dx);
             }
@@ -747,7 +747,7 @@ namespace minnet
         case LOG: {
             if (!operand1) break;
             std::vector<float> log_dy_dx = std::vector<float>(operand1->_size);
-            for (int i = 0; i < _size; i++) {
+            for (int i = 0; i < log_dy_dx.size(); i++) {
                 log_dy_dx[i] = 1.f / (operand1->_data[i] * std::log(const_operand1) + delta);
             }
             operand1->backward(grad, log_dy_dx);
@@ -756,7 +756,7 @@ namespace minnet
         case POW: {
             if (!operand1) break;
             std::vector<float> pow_dy_dx = std::vector<float>(operand1->_size);
-            for (int i = 0; i < _size; i++) {
+            for (int i = 0; i < pow_dy_dx.size(); i++) {
                 pow_dy_dx[i] = const_operand1 * std::pow(operand1->_data[i] + delta, const_operand1 - 1);
             }
             operand1->backward(grad, pow_dy_dx);
@@ -765,7 +765,7 @@ namespace minnet
         case RPOW: {
             if (!operand1) break;
             std::vector<float> rpow_dy_dx = std::vector<float>(operand1->_size);
-            for (int i = 0; i < _size; i++) {
+            for (int i = 0; i < rpow_dy_dx.size(); i++) {
                 rpow_dy_dx[i] = std::log(const_operand1) * std::pow(const_operand1, operand1->_data[i]);
             }
             operand1->backward(grad, rpow_dy_dx);
@@ -774,8 +774,8 @@ namespace minnet
         case RELU: {
             if (!operand1) break;
             std::vector<float> relu_dy_dx = std::vector<float>(operand1->_size);
-            for (int i = 0; i < _size; i++) {
-                relu_dy_dx[i] = operand1->_data[i] == 0.f ? 0.f : 1.f;
+            for (int i = 0; i < relu_dy_dx.size(); i++) {
+                relu_dy_dx[i] = operand1->_data[i] < 0.f ? 0.f : 1.f;
             }
             operand1->backward(grad, relu_dy_dx);
             break;
@@ -788,9 +788,9 @@ namespace minnet
             r1.require_grad(false);
             r2.require_grad(false);
             _Tensor new_grad1 = grad.dot(r2);
-            if (!operand1) break; operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
+            operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
             _Tensor new_grad2 = r1.dot(grad);
-            if (!operand2) break; operand2->backward(new_grad2, std::vector<float>(operand2->size(), 1.f));
+            operand2->backward(new_grad2, std::vector<float>(operand2->size(), 1.f));
         }
         default:
             break;

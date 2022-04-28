@@ -15,7 +15,7 @@ namespace minnet
 	public:
 		Layer() = delete;
 		Layer(int input, int output);
-		virtual Tensor Forward(Tensor& tensor) = 0;
+		virtual std::vector<Tensor> Forward(std::vector<Tensor>& tensor) = 0;
 		Tensor param;
 		Tensor bias;
 	};
@@ -23,7 +23,7 @@ namespace minnet
 	class LinerLayer : public Layer {
 	public:
 		LinerLayer(int input, int output);
-		Tensor Forward(Tensor& tensor) override;
+		std::vector<Tensor> Forward(std::vector<Tensor>& tensor) override;
 	private:
 	};
 } // namespace minnet
