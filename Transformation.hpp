@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRANS_H_
+#define TRANS_H_
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -10,3 +11,4 @@ namespace minnet {
 
     cv::Mat to_mat(const Tensor& tensor);
 } // minnet
+#endif

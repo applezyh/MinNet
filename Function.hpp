@@ -1,4 +1,6 @@
-#pragma once
+#ifndef FUNC_H_
+#define FUNC_H_
+
 #include "Tensor.hpp"
 
 namespace minnet
@@ -51,4 +53,4 @@ namespace minnet
         return index;
     }
 } // namespace minnet
-
+#endif

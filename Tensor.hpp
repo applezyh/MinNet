@@ -1,3 +1,6 @@
+#ifndef TENSOR_H_
+#define TENSOR_H_
+
 #include <iostream>
 #include <vector>
 
@@ -19,7 +22,8 @@ namespace minnet
         ROWSUM,
         RELU,
         CONV2D,
-        PADDING
+        PADDING,
+        RESHAPE
     };
 
 
@@ -66,35 +70,40 @@ namespace minnet
         }
 
         template<typename T, typename... Args>  requires (std::is_same_v<T, int>)
-        void reshape(const T& arg, const Args&... args) {
-            int temp = _size;
-            std::vector<int> shape = _shape;
-            _size = 1;
-            _shape.clear();
-            Init(arg, args...);
-            if (temp == _size) {
-                update_strided();
-                return;
+        _Tensor& reshape(const T& arg, const Args&... args) {         
+            std::vector<int> new_shape;
+            getIndex(new_shape, arg, args...);
+            int new_size = 1;
+            for (auto& v : new_shape) new_size *= v;
+            if (new_size == _size) {
+                _Tensor& temp = *(new _Tensor(*this));
+                temp._shape = new_shape;
+                temp.update_strided();
+                temp.operand1 = this->shared_from_this();
+                temp.opeartor = RESHAPE;
+                return temp;
             }
             else {
                 int count = 0;
                 int temp_size = 1;
-                for (int i = 0; i < _shape.size(); i++) {
-                    if (_shape[i] == -1) count++;
-                    else temp_size *= _shape[i];
+                for (int i = 0; i < new_shape.size(); i++) {
+                    if (new_shape[i] == -1) count++;
+                    else temp_size *= new_shape[i];
                 }
-                if (temp_size != 0 && count == 1 && temp % temp_size == 0) {
-                    int t = temp / temp_size;
-                    for (int i = 0; i < _shape.size(); i++) {
-                        if (_shape[i] == -1) _shape[i] = t;
+                if (temp_size != 0 && count == 1 && new_size % temp_size == 0) {
+                    int t = new_size / temp_size;
+                    for (int i = 0; i < new_shape.size(); i++) {
+                        if (new_shape[i] == -1) new_shape[i] = t;
                     }
-                    update_strided();
-                    return;
+                    _Tensor& temp = *(new _Tensor(*this));
+                    temp._shape = new_shape;
+                    temp.update_strided();
+                    temp.operand1 = this->shared_from_this();
+                    temp.opeartor = RESHAPE;
+                    return temp;
                 }
-                std::vector<int> wrong_shape = _shape;
-                _size = temp;
-                _shape = shape;
-                throw TensorWrong(2, _shape, wrong_shape);
+                throw TensorWrong(2, _shape, new_shape);
+                return *this;
             }
         }
 
@@ -316,8 +325,8 @@ namespace minnet
         }
 
         template<typename... Args>
-        void reshape(const Args&... args) {
-            return _tensor->reshape(args...);
+        Tensor reshape(const Args&... args) {
+            return Tensor(_tensor->reshape(args...));
         }
 
         template<typename... Args>
@@ -544,3 +553,5 @@ namespace minnet
         std::shared_ptr<_Tensor> _tensor;
     };
 } // namespace minnet
+
+#endif

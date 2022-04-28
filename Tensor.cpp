@@ -549,6 +549,7 @@ namespace minnet
         if (require_grad() || kernel.require_grad()) {
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
             result.operand2 = const_cast<_Tensor*>(&kernel)->shared_from_this();
+            result.const_operand1 = stride;
         }
         else result.require_grad(false);
         for (int t = 0; t < n; t++) {
@@ -563,7 +564,7 @@ namespace minnet
                             }
                         }
                     }
-                    result.at(i / stride, j / stride, t) = conv_result;
+                    result.at(i / stride, j / stride, t) = conv_result / ch;
                 }
             }
         }
@@ -862,7 +863,52 @@ namespace minnet
             break;
         }
         case CONV2D: {
-            // TODO
+            if (!operand1 && !operand2) break;
+            _Tensor kernel_grad = _Tensor(operand2->_shape);
+            _Tensor kernel_dy_dx = _Tensor(operand2->_shape);
+            _Tensor conv2d_grad = _Tensor(operand1->_shape);
+            _Tensor conv2d_dy_dx = _Tensor(operand1->_shape);
+            kernel_grad.require_grad(false);
+            kernel_dy_dx.require_grad(false);
+            conv2d_grad.require_grad(false);
+            conv2d_dy_dx.require_grad(false);
+            kernel_dy_dx.assignment(1.f);
+            conv2d_dy_dx.assignment(1.f);
+
+            int in_ch = operand1->_shape[2];
+            int out_ch = grad._shape[2];
+            int kernel_x = kernel_grad._shape[1];
+            int kernel_y = kernel_grad._shape[2];
+
+            int out_x = _shape[0];
+            int out_y = _shape[1];
+            int num = 0;
+            for (int t = 0; t < out_ch; t++) {
+                for (int i = 0; i < out_x; i++) {
+                    for (int j = 0; j < out_y; j++) {
+                        for (int t1 = 0; t1 < in_ch; t1++) {
+                            for (int t2 = 0; t2 < kernel_grad._shape[1]; t2++) {
+                                for (int t3 = 0; t3 < kernel_grad._shape[2]; t3++) {
+                                    kernel_grad.at(t, t1, t2) += grad.at(i, j, t) * operand1->at(i + t2, j + t3, t1) / in_ch;   
+                                }
+                            }
+                        }
+                        num++;
+                        for (int t1 = 0; t1 < in_ch; t1++) {
+                            for (int t2 = 0; t2 < kernel_grad._shape[1]; t2++) {
+                                for (int t3 = 0; t3 < kernel_grad._shape[2]; t3++) {
+                                    conv2d_grad.at(i + t2, j + t3, t1) += kernel_grad.at(t, t2, t3) * grad.at(i, j, t);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for (auto& param : kernel_grad) {
+                param /= num;
+            }
+            operand1->backward(conv2d_grad, conv2d_dy_dx._data);
+            operand2->backward(kernel_grad, kernel_dy_dx._data);
             break;
         }
         case MATMUL: {
@@ -876,6 +922,13 @@ namespace minnet
             operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
             _Tensor new_grad2 = r1.dot(grad);
             operand2->backward(new_grad2, std::vector<float>(operand2->size(), 1.f));
+            break;
+        }
+        case RESHAPE: {
+            grad._shape = operand1->_shape;
+            grad.update_strided();
+            operand1->backward(grad, std::vector<float>(operand1->size(), 1.f));
+            break;
         }
         default:
             break;
