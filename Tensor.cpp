@@ -41,10 +41,11 @@ namespace minnet
         _strided = t._strided;
         _data = t._data;
         _grad = t._grad;
-        dy_dx = t.dy_dx;
         _size = t._size;
         operand1 = t.operand1;
         operand2 = t.operand2;
+        const_operand1 = t.const_operand1;
+        const_operand2 = t.const_operand2;
         opeartor = t.opeartor;
         _require_grad = t._require_grad;
     }
@@ -54,10 +55,11 @@ namespace minnet
         _strided = std::move(t._strided);
         _data = std::move(t._data);
         _grad = std::move(t._grad);
-        dy_dx = t.dy_dx;
         _size = t._size;
         operand1 = t.operand1;
         operand2 = t.operand2;
+        const_operand1 = t.const_operand1;
+        const_operand2 = t.const_operand2;
         opeartor = t.opeartor;
         _require_grad = t._require_grad;
     }
@@ -97,6 +99,12 @@ namespace minnet
     void _Tensor::assignment(float other) {
         for (auto& v : _data) {
             v = other;
+        }
+    }
+
+    void _Tensor::rand() {
+        for (auto& v : _data) {
+            v = (std::rand() % 1000 - 500) / 1000.f;
         }
     }
 
@@ -145,10 +153,11 @@ namespace minnet
         _strided = t._strided;
         _data = t._data;
         _grad = t._grad;
-        dy_dx = t.dy_dx;
         _size = t._size;
         operand1 = t.operand1;
         operand2 = t.operand2;
+        const_operand1 = t.const_operand1;
+        const_operand2 = t.const_operand2;
         opeartor = t.opeartor;
         _require_grad = t._require_grad;
         return *this;
@@ -160,9 +169,10 @@ namespace minnet
         _data = std::move(t._data);
         _grad = std::move(t._grad);
         _size = std::move(t._size);
-        dy_dx = t.dy_dx;
         operand1 = t.operand1;
         operand2 = t.operand2;
+        const_operand1 = t.const_operand1;
+        const_operand2 = t.const_operand2;
         opeartor = t.opeartor;
         _require_grad = t._require_grad;
         return *this;
@@ -185,12 +195,9 @@ namespace minnet
 
     _Tensor& operator+(const _Tensor& t, float other) {
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = ADD;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(1.f);
-            t.opeartor = ADD;
+            temp.const_operand2 = other; 
             temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
@@ -204,13 +211,10 @@ namespace minnet
 
     _Tensor& operator+(float other, const _Tensor& t) {
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = ADD;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(1.f);
-            t.opeartor = ADD;
-            temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
+            temp.const_operand1 = other;
+            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
             temp.require_grad(false);
@@ -223,12 +227,9 @@ namespace minnet
 
     _Tensor& operator-(const _Tensor& t, float other){
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = SUB;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(1.f);
-            t.opeartor = SUB;
+            temp.const_operand2 = other;
             temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
@@ -242,13 +243,10 @@ namespace minnet
 
     _Tensor& operator-(float other, const _Tensor& t) {
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = SUB;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(-1.f);
-            t.opeartor = SUB;
-            temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
+            temp.const_operand1 = other;
+            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
             temp.require_grad(false);
@@ -261,12 +259,9 @@ namespace minnet
 
     _Tensor& operator*(const _Tensor& t, float other){
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = MUL;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(other);
-            t.opeartor = MUL;
+            temp.const_operand2 = other;
             temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
@@ -280,13 +275,10 @@ namespace minnet
 
     _Tensor& operator*(float other, const _Tensor& t){
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = MUL;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(other);
-            t.opeartor = MUL;
-            temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
+            temp.const_operand1 = other;
+            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
             temp.require_grad(false);
@@ -299,12 +291,9 @@ namespace minnet
 
     _Tensor& operator/(const _Tensor& t, float other){
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = DIV;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            t.dy_dx->assignment(1 / (other + delta));
-            t.opeartor = DIV;
+            temp.const_operand2 = other;
             temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
@@ -318,15 +307,10 @@ namespace minnet
 
     _Tensor& operator/(float other, const _Tensor& t) {
         _Tensor& temp = *(new _Tensor(t.shape()));
-
+        temp.opeartor = DIV;
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            t.dy_dx->require_grad(false);
-            for (int i = 0; i < t.dy_dx->size(); i++) {
-                t.dy_dx->_data[i] = -1.f * other / (t._data[i] * t._data[i] + delta);
-            }
-            t.opeartor = DIV;
-            temp.operand1 = const_cast<_Tensor*>(&t)->shared_from_this();
+            temp.const_operand1 = other;
+            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         else {
             temp.require_grad(false);
@@ -339,53 +323,29 @@ namespace minnet
 
     _Tensor& _Tensor::operator+(const _Tensor& t) const {
         _Tensor& temp = *(new _Tensor(t.shape()));
+        temp.opeartor = ADD;
         if (!shapeEq(t)) {
             throw TensorWrong(2, shape(), t.shape());
             return temp;
         }  
-        if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(*this);
-            t.dy_dx->assignment(1.f);
-            t.dy_dx->require_grad(false);
-            t.opeartor = ADD;
-            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
-        }
-        if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(t);
-            dy_dx->assignment(1.f);
-            dy_dx->require_grad(false);
-            opeartor = ADD;
-            temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
-        }
+        temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
+        temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         if (!t.require_grad() && !require_grad()) temp.require_grad(false);
         for (int i = 0; i < t.size(); i++) {
             temp._data[i] = _data[i] + t._data[i];
         }
         return temp;
-        throw TensorWrong(2, shape(), t.shape());
-        return temp;
     }
 
     _Tensor& _Tensor::operator-(const _Tensor& t) const {
         _Tensor& temp = *(new _Tensor(t.shape()));
+        temp.opeartor = SUB;
         if (!shapeEq(t)) {
             throw TensorWrong(2, shape(), t.shape());
             return temp;
         }
-        if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(*this);
-            t.dy_dx->assignment(-1.f);
-            t.dy_dx->require_grad(false);
-            t.opeartor = SUB;
-            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
-        }
-        if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(t);
-            dy_dx->assignment(1.f);
-            dy_dx->require_grad(false);
-            opeartor = SUB;
-            temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
-        }
+        temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
+        temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         if (!t.require_grad() && !require_grad()) temp.require_grad(false);
         
         for (int i = 0; i < t.size(); i++) {
@@ -396,22 +356,13 @@ namespace minnet
 
     _Tensor& _Tensor::operator*(const _Tensor& t) const {
         _Tensor& temp = *(new _Tensor(t.shape()));
+        temp.opeartor = MUL;
         if (!shapeEq(t)) {
             throw TensorWrong(2, shape(), t.shape());
             return temp;
         }
-        if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(*this);
-            t.dy_dx->require_grad(false);
-            t.opeartor = MUL;
-            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
-        }
-        if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(t);
-            dy_dx->require_grad(false);
-            opeartor = MUL;
-            temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
-        }
+        temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
+        temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         if (!t.require_grad() && !require_grad()) temp.require_grad(false);
         
         for (int i = 0; i < t.size(); i++) {
@@ -422,37 +373,13 @@ namespace minnet
 
     _Tensor& _Tensor::operator/(const _Tensor& t) const {
         _Tensor& temp = *(new _Tensor(t.shape()));
+        temp.opeartor = DIV;
         if (!shapeEq(t)) {
             throw TensorWrong(2, shape(), t.shape());
             return temp;
         }
-        if (t.require_grad()) {
-            _Tensor r1(*this);
-            r1.require_grad(false);
-            _Tensor r2(t);
-            r2.require_grad(false);
-            t.dy_dx = std::make_shared<_Tensor>(t.shape());
-            for (int i = 0; i < t.size(); i++) {
-                t.dy_dx->_data[i] = -1.f * _data[i] / (t._data[i] * t._data[i] + delta);
-            }
-            t.dy_dx->require_grad(false);
-            t.opeartor = DIV;
-            temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
-        }
-        if (require_grad()) {
-            _Tensor r1 = t;
-            r1.require_grad(false);
-            _Tensor r2 = t;
-            r2.assignment(1.f);
-            r2.require_grad(false);
-            dy_dx = std::make_shared<_Tensor>(shape());
-            for (int i = 0; i < t.size(); i++) {
-                dy_dx->_data[i] = 1.f / (t._data[i] + delta);
-            }
-            dy_dx->require_grad(false);
-            opeartor = DIV;
-            temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
-        }
+        temp.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
+        temp.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         if (!t.require_grad() && !require_grad()) temp.require_grad(false);
         
         for (int i = 0; i < t.size(); i++) {
@@ -462,21 +389,7 @@ namespace minnet
     }
 
     _Tensor& _Tensor::operator-() {
-        _Tensor& temp = *(new _Tensor(shape()));
-        if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(shape());
-            dy_dx->require_grad(false);
-            dy_dx->assignment(-1.f);
-            opeartor = SUB;
-            temp.operand2 = const_cast<_Tensor*>(this)->shared_from_this();
-        }
-        else {
-            temp.require_grad(false);
-        }
-        for (int i = 0; i < size(); i++) {
-            temp._data[i] = 0.f - _data[i];
-        }
-        return temp;
+        return 0.f - *this;
     }
 
     std::ostream& operator<<(std::ostream& out, const _Tensor& tensor) {
@@ -493,10 +406,9 @@ namespace minnet
         if (_require_grad == grad) return;
         _require_grad = grad;
         if (!_require_grad) {
-            _grad = std::vector<float>();
+            _grad.clear();
             operand1 = nullptr;
             operand2 = nullptr;
-            dy_dx = nullptr;
         }
         else _grad = std::vector<float>(_size, 0.f);
     }
@@ -573,23 +485,14 @@ namespace minnet
         {
             throw TensorWrong(2, shape(), t.shape());
             return *this;
-        }
-
-        _Tensor trans1 = t, trans2 = *this;
-        trans1.transpose(1, 0);
-        trans2.transpose(1, 0);
-
+        } 
         _Tensor& result = *(new _Tensor(_shape[0], t._shape[1]));
+        result.opeartor = MATMUL;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(std::move(trans1));
-            dy_dx->require_grad(false);
-            opeartor = MATMUL;
+            
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         if (t.require_grad()) {
-            t.dy_dx = std::make_shared<_Tensor>(std::move(trans2));
-            t.dy_dx->require_grad(false);
-            t.opeartor = MATMULED;
             result.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
         #pragma omp parallel for
@@ -605,13 +508,9 @@ namespace minnet
 
     _Tensor& _Tensor::pow(float s) const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = POW;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            for (int i = 0; i < dy_dx->size(); i++) {
-                dy_dx->_data[i] = s * std::pow(_data[i] + delta, s) / (_data[i] + delta);
-            }
-            opeartor = POW;
+            result.const_operand1 = s;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         for (int i = 0; i < size(); i++) {
@@ -622,13 +521,9 @@ namespace minnet
 
     _Tensor& _Tensor::rpow(float s) const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = RPOW;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            for (int i = 0; i < dy_dx->size(); i++) {
-                dy_dx->_data[i] = std::log(s + delta) * std::pow(s + delta, _data[i]);
-            }
-            opeartor = RPOW;
+            result.const_operand1 = s;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         for (int i = 0; i < size(); i++) {
@@ -637,32 +532,23 @@ namespace minnet
         return result;
     }
 
-    _Tensor& _Tensor::log() const {
+    _Tensor& _Tensor::log(float s) const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = LOG;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            for (int i = 0; i < dy_dx->size(); i++) {
-                dy_dx->_data[i] = 1 / (_data[i] + delta);
-            }
-            opeartor = LOG;
+            result.const_operand1 = s;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         for (int i = 0; i < size(); i++) {
-            result._data[i] = std::log(_data[i] + delta);
+            result._data[i] = std::log(_data[i] + delta) / std::log(s);
         }
         return result;
     }
 
     _Tensor& _Tensor::mean() const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = MEAN;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            for (int i = 0; i < dy_dx->size(); i++) {
-                dy_dx->_data[i] = 1.f / _data.size();
-            }
-            opeartor = MEAN;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         float sum = 0.f;
@@ -678,11 +564,8 @@ namespace minnet
 
     _Tensor& _Tensor::sum() const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = SUM;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            dy_dx->assignment(1.f);
-            opeartor = SUM;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         float sum = 0.f;
@@ -697,13 +580,8 @@ namespace minnet
 
     _Tensor& _Tensor::relu() const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = RELU;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape); 
-            for (int i = 0; i < dy_dx->size(); i++) {
-                dy_dx->_data[i] = _data[i] < 0.f ? 0.f : 1.f;
-            }
-            dy_dx->require_grad(false);
-            opeartor = RELU;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         for (int i = 0; i < size(); i++) {
@@ -713,11 +591,8 @@ namespace minnet
     }
     _Tensor& _Tensor::rowsum() const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = ROWSUM;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            dy_dx->assignment(1.f);
-            opeartor = ROWSUM;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         for (int i = 0; i < _shape[0]; i++) {
@@ -734,11 +609,8 @@ namespace minnet
 
     _Tensor& _Tensor::colmean() const {
         _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = ROWSUM;
         if (require_grad()) {
-            dy_dx = std::make_shared<_Tensor>(_shape);
-            dy_dx->require_grad(false);
-            dy_dx->assignment(1.f);
-            opeartor = ROWSUM;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         std::vector<float> sum = std::vector<float>(_strided[0]);
@@ -757,54 +629,181 @@ namespace minnet
 
     void _Tensor::zero_grad() {
         for (auto& v : _grad) {
-             v = 0;
+             v = 0.f;
         }
         if (operand1) operand1->zero_grad();
         if (operand2) operand2->zero_grad();
     }
 
-    void _Tensor::backward(_Tensor grad) {
+    void _Tensor::backward(_Tensor grad, const std::vector<float>& dy_dx) {
         if (!require_grad()) return;
+        for (int i = 0; i < grad.size(); i++) {
+            grad._data[i] *= dy_dx[i];
+        }
         switch (opeartor)
         {
-        case ADD:
-        case SUB:
-        case MUL:
-        case DIV:
-        case SUM:
-        case MEAN:
-        case LOG:
-        case POW:
-        case RPOW:
-        case RELU:
-        case ROWSUM:
-            for (int i = 0; i < _grad.size(); i++) {
-                grad._data[i] *= dy_dx->_data[i];
+        case ADD: {
+            std::vector<float> add_dy_dx = std::vector<float>(_size, 1.f);
+            if (operand1) operand1->backward(grad, add_dy_dx);
+            if (operand2) operand2->backward(grad, add_dy_dx);
+            break;
+        }   
+        case SUB: {
+            std::vector<float> sub_dy_dx = std::vector<float>(_size, 1.f);
+            if (operand1) operand1->backward(grad, sub_dy_dx);
+            for (auto& value : sub_dy_dx) {
+                value = -1.f;
+            }
+            if (operand2) operand2->backward(grad, sub_dy_dx);
+            break;
+        }
+        case MUL: {
+            if (operand1 && operand2) { 
+                operand1->backward(grad, operand2->_data); 
+                operand2->backward(grad, operand1->_data);
+            }
+            else if (operand1) {
+                std::vector<float> mul_dy_dx = std::vector<float>(operand1->_size, const_operand2);
+                operand1->backward(grad, mul_dy_dx);
+            }
+            else if (operand2) {
+                std::vector<float> mul_dy_dx = std::vector<float>(operand1->_size, const_operand1);
+                operand2->backward(grad, mul_dy_dx);
             }
             break;
-        case MATMUL:
-            grad = grad.dot(*dy_dx);
-            grad.require_grad(false);
-
+        }
+        case DIV: {
+            if (operand1 && operand2) {
+                std::vector<float> div_dy_dx = std::vector<float>(operand1->_size);
+                for (int i = 0; i < _size; i++) {
+                    div_dy_dx[i] = 1.f / (operand2->_data[i] + delta);
+                }
+                operand1->backward(grad, div_dy_dx);
+                for (int i = 0; i < _size; i++) {
+                    div_dy_dx[i] = -1.f * operand1->_data[i] / (operand2->_data[i] * operand2->_data[i] + delta);
+                }
+                operand2->backward(grad, div_dy_dx);
+            }
+            else if (operand1) {
+                std::vector<float> div_dy_dx = std::vector<float>(operand1->_size, 1.f / (const_operand2 + delta));
+                operand1->backward(grad, div_dy_dx);
+            }
+            else if (operand2) {
+                std::vector<float> div_dy_dx = std::vector<float>(operand1->_size);
+                for (int i = 0; i < _size; i++) {
+                    div_dy_dx[i] = 1.f * const_operand1 / (operand2->_data[i] * operand2->_data[i] + delta);
+                }
+                operand2->backward(grad, div_dy_dx);
+            }
             break;
-        case MATMULED:
-            grad = dy_dx->dot(grad);
-            grad.require_grad(false);
+        }
+        case MEAN: {
+            if (!operand1) break;
+            _Tensor new_grad(grad);
+            new_grad.require_grad(false);
+            float sum = 0.f;
+            for (int i = 0; i < new_grad._size; i++) {
+                sum += new_grad._data[i];
+            }
+            for (int i = 0; i < new_grad._size; i++) {
+                new_grad._data[i] = sum / new_grad._size;
+            }
+            std::vector<float> mean_dy_dx = std::vector<float>(operand1->_size, 1.f);
+            operand1->backward(new_grad, mean_dy_dx);
             break;
+        }
+        case ROWSUM: {
+            if (!operand1) break;
+            _Tensor new_grad(grad);
+            new_grad.require_grad(false);
+            for (int i = 0; i < new_grad._shape[0]; i++) {
+                float sum = 0.f;
+                for (int j = 0; j < new_grad._strided[0]; j++) {
+                    sum += new_grad._data[i * _strided[0] + j];
+                }
+                for (int j = 0; j < new_grad._strided[0]; j++) {
+                    new_grad._data[i * _strided[0] + j] = sum;
+                }
+            }
+            std::vector<float> rowsum_dy_dx = std::vector<float>(operand1->_size, 1.f);
+            operand1->backward(new_grad, rowsum_dy_dx);
+            break;
+        }
+        case SUM: {
+            if (!operand1) break;
+            _Tensor new_grad(grad);
+            new_grad.require_grad(false);
+            float sum = 0.f;
+            for (int i = 0; i < new_grad._size; i++) {
+                sum += new_grad._data[i];
+            }
+            for (int i = 0; i < new_grad._size; i++) {
+                new_grad._data[i] = sum;
+            }
+            std::vector<float> sum_dy_dx = std::vector<float>(operand1->_size, 1.f);
+            operand1->backward(new_grad, sum_dy_dx);
+            break; 
+        }    
+        case LOG: {
+            if (!operand1) break;
+            std::vector<float> log_dy_dx = std::vector<float>(operand1->_size);
+            for (int i = 0; i < _size; i++) {
+                log_dy_dx[i] = 1.f / (operand1->_data[i] * std::log(const_operand1) + delta);
+            }
+            operand1->backward(grad, log_dy_dx);
+            break;
+        }
+        case POW: {
+            if (!operand1) break;
+            std::vector<float> pow_dy_dx = std::vector<float>(operand1->_size);
+            for (int i = 0; i < _size; i++) {
+                pow_dy_dx[i] = const_operand1 * std::pow(operand1->_data[i] + delta, const_operand1 - 1);
+            }
+            operand1->backward(grad, pow_dy_dx);
+            break; 
+        }
+        case RPOW: {
+            if (!operand1) break;
+            std::vector<float> rpow_dy_dx = std::vector<float>(operand1->_size);
+            for (int i = 0; i < _size; i++) {
+                rpow_dy_dx[i] = std::log(const_operand1) * std::pow(const_operand1, operand1->_data[i]);
+            }
+            operand1->backward(grad, rpow_dy_dx);
+            break;
+        }
+        case RELU: {
+            if (!operand1) break;
+            std::vector<float> relu_dy_dx = std::vector<float>(operand1->_size);
+            for (int i = 0; i < _size; i++) {
+                relu_dy_dx[i] = operand1->_data[i] == 0.f ? 0.f : 1.f;
+            }
+            operand1->backward(grad, relu_dy_dx);
+            break;
+        } 
+        case MATMUL: {
+            _Tensor r1 = *operand1;
+            _Tensor r2 = *operand2;
+            r1.transpose(1, 0);
+            r2.transpose(1, 0);
+            r1.require_grad(false);
+            r2.require_grad(false);
+            _Tensor new_grad1 = grad.dot(r2);
+            if (!operand1) break; operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
+            _Tensor new_grad2 = r1.dot(grad);
+            if (!operand2) break; operand2->backward(new_grad2, std::vector<float>(operand2->size(), 1.f));
+        }
         default:
             break;
         }
         for (int i = 0; i < _grad.size(); i++) {
                 _grad[i] += grad._data[i];
         }
-        if (operand1) operand1->backward(grad);
-        if (operand2) operand2->backward(grad);
     }
 
     void _Tensor::backward() {
         _Tensor grad(_shape);
         grad.assignment(1.f);
         grad.require_grad(false);
-        backward(grad);
+        backward(grad, std::vector<float>(_size, 1.f));
     }
 } // namespace minnet

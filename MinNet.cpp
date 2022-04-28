@@ -1,7 +1,7 @@
 ﻿// MinNet.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
 
-#include "Tensor.hpp"
+#include "Function.hpp"
 #include "mnist.hpp"
 
 #include <iostream>
@@ -40,6 +40,7 @@ int argMax(std::vector<T>& v) {
 
 
 int main() {
+    srand(clock());
     auto src_data = readAndSave("D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-images-idx3-ubyte\\train-images.idx3-ubyte",
         "D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-labels-idx1-ubyte\\train-labels.idx1-ubyte");
 
@@ -55,12 +56,7 @@ int main() {
 
     minnet::Tensor k(784, 10);
     minnet::Tensor b(1, 10);
-    for (auto it1 = k.begin(), it2 = k.grad_begin(); it1 != k.end(); it1++, it2++) {
-        *it1 = (rand() / 1000) / 1000.f;
-    }
-    for (auto it1 = b.begin(), it2 = b.grad_begin(); it1 != b.end(); it1++, it2++) {
-        *it1 = (rand() / 1000) / 1000.f;
-    }
+    k.rand();
     int count = 0;
     ::shuffle(data, label, src_data);
     for (int j = 0; j < 1000; j++) {
@@ -69,7 +65,6 @@ int main() {
         minnet::Tensor real;
         real.from_vector_2d(label, j, j + 1);
         minnet::Tensor result = in.dot2d(k) + b;
-        result = result.rpow(2.718281828459f) / result.rpow(2.718281828459f).rowsum();
         real.reshape(1, 10);
         float max = -1.f;
         int index = 0;
@@ -95,7 +90,6 @@ int main() {
         minnet::Tensor real;
         real.from_vector_2d(label, j, j + 1);
         minnet::Tensor result = in.dot2d(k) + b;
-        result = (result - result.max()).rpow(2.718281828459f) / (result - result.max()).rpow(2.718281828459f).rowsum();
         real.reshape(1, 10);
         float max = -1.f;
         int index = 0;
@@ -112,7 +106,7 @@ int main() {
     }
     cv::destroyWindow("result");
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5 ; i++) {
         ::shuffle(data, label, src_data);
         for (int j = 0; j < 60000; j++) {
             minnet::Tensor in;
@@ -121,9 +115,8 @@ int main() {
             real.from_vector_2d(label, j, j + 1);
 
             minnet::Tensor result = in.dot2d(k) + b;
-            result = (result - result.max()).rpow(2.718281828459f) / (result - result.max()).rpow(2.718281828459f).rowsum();
             real.reshape(1, 10);
-            minnet::Tensor loss = (real - result).pow(2.f);
+            minnet::Tensor loss = minnet::CrossEntropyLoss(result, real);
 
             loss.zero_grad();
             loss.backward();
@@ -143,7 +136,6 @@ int main() {
         minnet::Tensor real;
         real.from_vector_2d(label, j, j + 1);
         minnet::Tensor result = in.dot2d(k) + b;
-        result = (result - result.max()).rpow(2.718281828459f) / (result - result.max()).rpow(2.718281828459f).rowsum();
         real.reshape(1, 10);
         float max = -1.f;
         int index = 0;
@@ -159,6 +151,32 @@ int main() {
         cv::waitKey(0);
     }
     cv::destroyWindow("result");
+    count = 0;
+    ::shuffle(data, label, src_data);
+    for (int j = 0; j < 60000; j++) {
+        minnet::Tensor in;
+        in.from_vector_2d(data, j, j + 1);
+        minnet::Tensor real;
+        real.from_vector_2d(label, j, j + 1);
+        minnet::Tensor result = in.dot2d(k) + b;
+        real.reshape(1, 10);
+        float max = -1.f;
+        int index = 0;
+        int i = 0;
+        for (auto it1 = result.begin(); it1 != result.end(); it1++) {
+            if (*it1 > max) max = *it1, index = i;
+            i++;
+        }
+        max = -1.f;
+        int real_index = 0;
+        i = 0;
+        for (auto it1 = real.begin(); it1 != real.end(); it1++) {
+            if (*it1 > max) max = *it1, real_index = i;
+            i++;
+        }
+        if (index == real_index) count++;
+    }
+    std::cout << "after train: " << count / 60000.f << std::endl;
     return 0;
 }
 

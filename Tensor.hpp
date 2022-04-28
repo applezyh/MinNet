@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 
+#define E 2.718281828459045235360287471352662497757247093f
+
 namespace minnet
 {
     enum {
@@ -14,7 +16,6 @@ namespace minnet
         SUM,
         MEAN,
         MATMUL,
-        MATMULED,
         ROWSUM,
         RELU
     };
@@ -162,6 +163,7 @@ namespace minnet
         std::vector<float>::iterator grad_end();
 
         void assignment(float other);
+        void rand();
 
         float max();
 
@@ -202,7 +204,7 @@ namespace minnet
         _Tensor& dot2d(const _Tensor& other);
         _Tensor& pow(float s) const;
         _Tensor& rpow(float s) const;
-        _Tensor& log() const;
+        _Tensor& log(float s) const;
         _Tensor& sum() const;
         _Tensor& relu() const;
         _Tensor& rowsum() const;
@@ -212,7 +214,7 @@ namespace minnet
         bool require_grad() const;
 
         void zero_grad();
-        void backward(_Tensor grad);
+        void backward(_Tensor grad, const std::vector<float>& dy_dx);
         void backward();
 
     private:
@@ -270,10 +272,9 @@ namespace minnet
         mutable std::shared_ptr<_Tensor> operand2 = nullptr;
         
         mutable std::vector<float> _grad = {};
-        mutable std::shared_ptr<_Tensor> dy_dx = nullptr;
 
-        mutable std::shared_ptr<_Tensor> dy_dx1 = nullptr;
-        mutable std::shared_ptr<_Tensor> dy_dx2 = nullptr;
+        mutable float const_operand1 = 0.f;
+        mutable float const_operand2 = 0.f;
 
         mutable int opeartor = -1;
 
@@ -364,7 +365,11 @@ namespace minnet
             _tensor->assignment(other);
         }
 
-        float max() {
+        void rand() {
+            _tensor->rand();
+        }
+
+        float max() const {
             return _tensor->max();
         }
 
@@ -455,7 +460,7 @@ namespace minnet
             return *this;
         }
 
-        Tensor operator-() {
+        Tensor operator-() const {
             return Tensor(-*(_tensor));
         }
 
@@ -490,8 +495,8 @@ namespace minnet
         Tensor rpow(float s) const {
             return Tensor(_tensor->rpow(s));
         }
-        Tensor log() const {
-            return Tensor(_tensor->log());
+        Tensor log(float s = E) const {
+            return Tensor(_tensor->log(s));
         }
         Tensor sum() const {
             return Tensor(_tensor->sum());
