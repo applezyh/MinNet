@@ -571,6 +571,40 @@ namespace minnet
         return result;
     }
 
+    _Tensor& _Tensor::maxpool2d(size_t size) {
+        if (_shape.size() != 3 || _shape[0] < size || _shape[1] < size)
+        {
+            throw TensorWrong(2, shape(), shape());
+            return *this;
+        }
+        std::vector<int> new_shape = shape();
+        new_shape[0] /= size;
+        new_shape[1] /= size;
+        _Tensor& result = *(new _Tensor(new_shape));
+        result.opeartor = MAXPOOL;
+        if (require_grad()) {
+            result.const_operand1 = size;
+            result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
+        }
+        int x = _shape[0] / size;
+        int y = _shape[1] / size;
+        int ch = _shape[2];
+        for (int i = 0; i < x * size; i += size) {
+            for (int j = 0; j < y * size; j += size) {
+                for (int k = 0; k < ch; k++) {
+                    float max = -INFINITY;
+                    for (int t1 = i; t1 < i + size; t1++) {
+                        for (int t2 = j; t2 < j + size; t2++) {
+                            if (at(t1, t2, k) > max) max = at(t1, t2, k);
+                        }
+                    }
+                    result.at(i / size, j / size, k) = max;
+                }
+            }
+        }
+        return result;
+    }
+
     _Tensor& _Tensor::pow(float s) const {
         _Tensor& result = *(new _Tensor(shape()));
         result.opeartor = POW;
@@ -928,6 +962,28 @@ namespace minnet
             grad._shape = operand1->_shape;
             grad.update_strided();
             operand1->backward(grad, std::vector<float>(operand1->size(), 1.f));
+            break;
+        }
+        case MAXPOOL: {
+            if (!operand1) break;
+            int scale = const_operand1;
+            _Tensor new_grad(operand1->_shape);
+            for (int i = 0; i < grad._shape[0]; i ++) {
+                for (int j = 0; j < grad._shape[1]; j++) {
+                    for (int k = 0; i < grad._shape[2]; i++) {
+                        bool flag = 1;
+                        for (int t1 = i; t1 < scale && flag; t1++) {
+                            for (int t2 = j; t2 < scale && flag; t2++) {
+                                if (operand1->at(t1, t2, k) == at(i, j, k)) {
+                                    new_grad.at(t1, t2, k) = new_grad.at(i, j, k);
+                                    flag = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            operand1->backward(new_grad, std::vector<float>(operand1->size(), 1.f));
             break;
         }
         default:

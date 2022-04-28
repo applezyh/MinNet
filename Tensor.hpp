@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#define E 2.718281828459045235360287471352662497757247093f
+constexpr float E  = 2.718281828459045235360287471352662497757247093f;
 
 namespace minnet
 {
@@ -23,7 +23,8 @@ namespace minnet
         RELU,
         CONV2D,
         PADDING,
-        RESHAPE
+        RESHAPE,
+        MAXPOOL
     };
 
 
@@ -48,7 +49,7 @@ namespace minnet
         _Tensor(_Tensor&& t) noexcept;
         _Tensor(const std::vector<int> shape);
 
-        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
         _Tensor(const T& arg, const Args&... args) :_size(1) {
             Init(arg, args...);
             _data = std::vector<float>(_size, 0.f);
@@ -69,7 +70,7 @@ namespace minnet
             return;
         }
 
-        template<typename T, typename... Args>  requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args>  requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
         _Tensor& reshape(const T& arg, const Args&... args) {         
             std::vector<int> new_shape;
             getIndex(new_shape, arg, args...);
@@ -90,8 +91,8 @@ namespace minnet
                     if (new_shape[i] == -1) count++;
                     else temp_size *= new_shape[i];
                 }
-                if (temp_size != 0 && count == 1 && new_size % temp_size == 0) {
-                    int t = new_size / temp_size;
+                if (temp_size != 0 && count == 1 && _size % temp_size == 0) {
+                    int t = _size / temp_size;
                     for (int i = 0; i < new_shape.size(); i++) {
                         if (new_shape[i] == -1) new_shape[i] = t;
                     }
@@ -129,7 +130,7 @@ namespace minnet
 
         }
 
-        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
             void transpose(const T& arg, const Args&... args) {
             std::vector<int> trans;
             getIndex(trans, arg, args...);
@@ -211,6 +212,7 @@ namespace minnet
         void from_vector_1d(const std::vector<float>& v, int s = 0, int e = -1);
         void from_vector_2d(const std::vector<std::vector<float>>& v, int s = 0, int e = -1);
 
+        _Tensor& maxpool2d(size_t size);
         _Tensor& padding2d(size_t size);
         _Tensor& conv2d(const _Tensor& kernel, int stride);
         _Tensor& mean() const;
@@ -233,7 +235,7 @@ namespace minnet
     private:
         _Tensor dot(const _Tensor& t);
 
-        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
         void getIndex(int& index, int& i, const T& arg, const Args&... args) const {
             index += arg * _strided[i++];
             getIndex(index, i, args...);
@@ -243,13 +245,13 @@ namespace minnet
             return;
         }
 
-        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
             void getIndex(std::vector<int>& index, const T& arg, const Args&... args) const {
             index.push_back(arg);
             getIndex(index, args...);
         }
 
-        template<typename T> requires (std::is_same_v<T, int>)
+        template<typename T> requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
             void getIndex(std::vector<int>& index, const T& arg) const {
             index.push_back(arg);
             return;
@@ -316,7 +318,7 @@ namespace minnet
             _tensor = std::make_shared<_Tensor>(shape);
         }
 
-        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, size_t>)
         Tensor(const T& arg, const Args&... args) {
             _tensor = std::make_shared<_Tensor>(_Tensor(arg, args...));
         }
@@ -340,7 +342,7 @@ namespace minnet
 
         }
 
-        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, unsigned int>)
         void transpose(const T& arg, const Args&... args) {
             _tensor->transpose(arg, args);
         }
@@ -501,6 +503,9 @@ namespace minnet
         }
         void from_vector_2d(const std::vector<std::vector<float>>& v, int s = 0, int e = -1) {
             _tensor->from_vector_2d(v, s, e);
+        }
+        Tensor maxpool2d(size_t size = 2) {
+            return Tensor(_tensor->maxpool2d(size));
         }
         Tensor conv2d(const Tensor& other, int strided = 1) {
             return Tensor(_tensor->conv2d(*(other._tensor), strided));

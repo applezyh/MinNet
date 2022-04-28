@@ -12,23 +12,6 @@
 #define BATCH_SIZE 32
 
 int main() {
-    //srand(clock());
-    //cv::Mat img = cv::imread("C:\\Users\\apple\\Desktop\\apple\\计算机视觉\\计算机视觉第一次作业\\bird.bmp", 0);
-    //img.convertTo(img, CV_32F);
-    //cv::normalize(img, img, 0, 1, cv::NORM_MINMAX);
-    //cv::imshow("re", img);
-    //cv::waitKey(0);
-    //cv::destroyWindow("re");
-    //minnet::Tensor img1 = minnet::from_mat(img);
-    //minnet::Tensor k(3, 11, 11);
-    //k.assignment(1.f / (11*11));
-    //minnet::Tensor re = img1.padding2d(5);
-    //re = re.conv2d(k);
-    //img = minnet::to_mat(re);
-    //cv::imshow("re", img);
-    //cv::waitKey(0);
-    //cv::destroyWindow("re");
-    //re.backward();
     auto src_data = readAndSave("D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-images-idx3-ubyte\\train-images.idx3-ubyte",
         "D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-labels-idx1-ubyte\\train-labels.idx1-ubyte");
 
@@ -42,14 +25,11 @@ int main() {
     }
 
 
-    minnet::Tensor k1(3 * 784, 10);
+    minnet::Tensor k1(3 * 784 / 4, 10);
     minnet::Tensor b1(1, 10);
-
     minnet::Tensor kernel(3, 3, 3);
-
     k1.rand();
     kernel.rand();
-    int count = 0;
     float lr = 0.001f;
 
     for (int i = 0; i < 5 ; i++) {
@@ -63,7 +43,8 @@ int main() {
             minnet::Tensor result = in.reshape(28, 28, 1);
             result = result.padding2d(1);
             result = result.conv2d(kernel);
-            result = result.reshape(1, 3 * 784);
+            result = result.maxpool2d();
+            result = result.reshape(1, -1);
             result = minnet::Relu(result);
             result = result.dot2d(k1) + b1;
             real.reshape(1, 10);
@@ -82,12 +63,9 @@ int main() {
                 *it1 = *it1 - lr * *it2;
             }
         }
-        if ((i + 1) % 5 == 0) {
-            lr /= 2;
-        }
         std::cout << "epoch: " << i + 1 << std::endl;
     }
-    count = 0;
+    int count = 0;
     for (int j = 0; j < 60000; j++) {
         minnet::Tensor in;
         in.from_vector_2d(data, j, j + 1);
@@ -96,7 +74,8 @@ int main() {
         minnet::Tensor result = in.reshape(28, 28, 1);
         result = result.padding2d(1);
         result = result.conv2d(kernel);
-        result = result.reshape(1, 3 * 784);
+        result = result.maxpool2d();
+        result = result.reshape(1, -1);
         result = minnet::Relu(result);
         result = result.dot2d(k1) + b1;
         real.reshape(1, 10);
