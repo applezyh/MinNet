@@ -89,7 +89,7 @@ std::vector<std::pair<int, cv::Mat>> readAndSave(const std::string& mnist_img_pa
                     ptr[n] = 255;
             }
         }
-        result[t++] = (std::pair<int, cv::Mat>((int)label, image));
+        result[t++] = (std::pair<int, cv::Mat>((int)label, std::move(image)));
     }
     return result;
 }

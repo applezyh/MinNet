@@ -17,7 +17,9 @@ namespace minnet
         MEAN,
         MATMUL,
         ROWSUM,
-        RELU
+        RELU,
+        CONV2D,
+        PADDING
     };
 
 
@@ -42,15 +44,15 @@ namespace minnet
         _Tensor(_Tensor&& t) noexcept;
         _Tensor(const std::vector<int> shape);
 
-        template<typename... Args>
-        _Tensor(const Args&... args) :_size(1) {
-            Init(args...);
+        template<typename T, typename... Args> requires (std::is_same_v<T, int>)
+        _Tensor(const T& arg, const Args&... args) :_size(1) {
+            Init(arg, args...);
             _data = std::vector<float>(_size, 0.f);
             _grad = std::vector<float>(_size, 0.f);
             update_strided();
         }
 
-        template<typename T, typename... Args>  requires (std::is_same_v<T, int>)
+        template<typename T, typename... Args>  
         void Init(const T& arg, const Args&... args) {
             _size *= arg;
             _shape.push_back(arg);
@@ -200,6 +202,8 @@ namespace minnet
         void from_vector_1d(const std::vector<float>& v, int s = 0, int e = -1);
         void from_vector_2d(const std::vector<std::vector<float>>& v, int s = 0, int e = -1);
 
+        _Tensor& padding2d(size_t size);
+        _Tensor& conv2d(const _Tensor& kernel, int stride);
         _Tensor& mean() const;
         _Tensor& dot2d(const _Tensor& other);
         _Tensor& pow(float s) const;
@@ -323,7 +327,7 @@ namespace minnet
 
         template<typename... Args>
         float at(const Args&... args) const {
-            return _tensor->at(args);
+            return _tensor->at(args...);
 
         }
 
@@ -489,7 +493,12 @@ namespace minnet
         void from_vector_2d(const std::vector<std::vector<float>>& v, int s = 0, int e = -1) {
             _tensor->from_vector_2d(v, s, e);
         }
-
+        Tensor conv2d(const Tensor& other, int strided = 1) {
+            return Tensor(_tensor->conv2d(*(other._tensor), strided));
+        }
+        Tensor padding2d(int size) {
+            return Tensor(_tensor->padding2d(size));
+        }
         Tensor mean() const {
             return Tensor(_tensor->mean());
         }

@@ -187,9 +187,9 @@ namespace minnet
 
     _Tensor _Tensor::dot(const _Tensor& t) {
         _Tensor* result = &(this->dot2d(t));
+        result->require_grad(false);
         _Tensor ret = std::move(*result);
         delete result;
-        ret.require_grad(false);
         return ret;
     }
 
@@ -487,19 +487,83 @@ namespace minnet
             return *this;
         } 
         _Tensor& result = *(new _Tensor(_shape[0], t._shape[1]));
-        result.opeartor = MATMUL;
-        if (require_grad()) {
-            
+        result.opeartor = MATMUL;  
+        if (require_grad() || t.require_grad()) {
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
-        }
-        if (t.require_grad()) {
             result.operand2 = const_cast<_Tensor*>(&t)->shared_from_this();
         }
+        else result.require_grad(false);
+
         #pragma omp parallel for
         for (int i = 0; i < _shape[0]; i++) {
             for (int j = 0; j < t._shape[1]; j++) {
                 for (int k = 0; k < _shape[1]; k++) {
                     result.at(i, j) += at(i, k) * t.at(k, j);
+                }
+            }
+        }
+        return result;
+    }
+
+    _Tensor& _Tensor::padding2d(size_t size) {
+        if (_shape.size() != 3) {
+            throw TensorWrong(2, shape(), shape());
+            return *this;
+        }
+        std::vector<int> new_shape = _shape;
+        new_shape[0] += 2 * size;
+        new_shape[1] += 2 * size;
+        _Tensor& result = *(new _Tensor(new_shape));
+        result.opeartor = PADDING;
+        if (require_grad()) {
+            result.const_operand1 = static_cast<float>(size);
+            result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
+        }
+        else result.require_grad(false);
+        #pragma omp parallel for
+        for (int i = size; i < result._shape[0] - size; i++) {
+            for (int j = size; j < result._shape[1] - size; j++) {
+                for (int k = 0; k < _strided[2]; k++) {
+                    result._data[i * result._strided[0] + j * result._strided[1] + k] =
+                        _data[(i - size) * _strided[0] + (j - size) * _strided[1] + k];
+                }
+            }
+        }
+        return result;
+    }
+
+    _Tensor& _Tensor::conv2d(const _Tensor& kernel, int stride) {
+        if (_shape.size() != 3 || kernel._shape.size() != 3
+            || _shape[0] < kernel._shape[1] || _shape[1] < kernel._shape[2]
+            || kernel._shape[1] != kernel._shape[2])
+        {
+            throw TensorWrong(2, shape(), kernel.shape());
+            return *this;
+        }
+        int n = kernel._shape[0];
+        int kx = kernel._shape[1];
+        int ky = kernel._shape[2];
+        int ch = _shape[2];
+        _Tensor& result = *(new _Tensor(_shape[0] - kx + 1, _shape[1] - ky + 1, n));
+        result.opeartor = CONV2D;
+        if (require_grad() || kernel.require_grad()) {
+            result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
+            result.operand2 = const_cast<_Tensor*>(&kernel)->shared_from_this();
+        }
+        else result.require_grad(false);
+        for (int t = 0; t < n; t++) {
+            #pragma omp parallel for
+            for (int i = 0; i <= _shape[0] - kx; i += stride) {
+                for (int j = 0; j <= _shape[1] - ky; j += stride) {
+                    float conv_result = 0.f;
+                    for (int k = 0; k < ch; k++) {
+                        for (int t1 = i; t1 < i + kx; t1++) {
+                            for (int t2 = j; t2 < j + ky; t2++) {
+                                conv_result += at(t1, t2, k) * kernel.at(t, t1 - i, t2 - j);
+                            }
+                        }
+                    }
+                    result.at(i / stride, j / stride, t) = conv_result;
                 }
             }
         }
@@ -780,6 +844,27 @@ namespace minnet
             operand1->backward(grad, relu_dy_dx);
             break;
         } 
+        case PADDING: {
+            if (!operand1) break;
+            std::vector<float> padding_dy_dx = std::vector<float>(operand1->_size, 1.f);
+            int padding_size = static_cast<int>(const_operand1);
+            _Tensor new_grad = _Tensor(operand1->_shape);
+            #pragma omp parallel for
+            for (int i = 0; i < new_grad._shape[0]; i++) {
+                for (int j = 0; j < new_grad._shape[1]; j++) {
+                    for (int k = 0; k < new_grad._strided[2]; k++) {
+                        new_grad._data[i * new_grad._strided[0] + j * new_grad._strided[1] + k] =
+                            grad._data[(i + padding_size) * _strided[0] + (j + padding_size) * _strided[1] + k];
+                    }
+                }
+            }
+            if (operand1) operand1->backward(new_grad, padding_dy_dx);
+            break;
+        }
+        case CONV2D: {
+            // TODO
+            break;
+        }
         case MATMUL: {
             _Tensor r1 = *operand1;
             _Tensor r2 = *operand2;
