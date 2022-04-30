@@ -2,6 +2,15 @@ cmake_minimum_required(VERSION 3.0)
 
 project(minnet)
 
+
+
+
+if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+	set(linux ON)
+elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    set(windows ON)
+endif()
+
 # set OpenMP
 find_package(OpenMP)
 
