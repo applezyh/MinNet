@@ -1,5 +1,3 @@
-project(minnet_demo)
-
 add_executable( minnet_demo MinNet.cpp )
 target_link_libraries( minnet_demo MINNET )
 target_link_libraries( minnet_demo ${OpenCV_LIBS} )
