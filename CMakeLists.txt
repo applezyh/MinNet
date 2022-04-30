@@ -1,25 +1,27 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.0)
 
 project(minnet)
 
-set(CXX_STANDARD 2A)
-set(CXX_STANDARD_REQUIRE TRUE)
-
-# find openmp
+# set OpenMP
 find_package(OpenMP)
 
 # set opencv
-set (OpenCV_DIR D:\\opencv\\build)
-find_package(OpenCV REQUIRED)
+set(OpenCV_DIR D:\\opencv\\build)
+find_package(OpenCV)
+if(OpenCV_FOUND)
+    message(STATUS "OpenCV library status:")
+    message(STATUS "	config: ${OpenCV_DIR}")
+    message(STATUS "	version: ${OpenCV_VERSION}")
+    message(STATUS "	librarier: ${OpenCV_LIBS}")
+    message(STATUS "	include path: ${OpenCV_INCLUDE_DIRS}")
+endif()
 
-message(STATUS "OpenCV library status:")
-message(STATUS "	config: ${OpenCV_DIR}")
-message(STATUS "	version: ${OpenCV_VERSION}")
-message(STATUS "	librarier: ${OpenCV_LIBS}")
-message(STATUS "	include path: ${OpenCV_INCLUDE_DIRS}")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 20)
 
-# add src and opencv include path
-include_directories(${OpenCV_INCLUDE_DIRS} include)
+set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(src)
-add_subdirectory(example)
+if(OpenCV_FOUND)
+    add_subdirectory(example)
+endif()

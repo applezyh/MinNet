@@ -1,6 +1,9 @@
 #ifndef OPT_H_
 #define OPT_H_
-#include "Layer.hpp"
+#include <list>
+#include <vector>
+
+#include "Tensor.hpp"
 
 namespace minnet
 {
