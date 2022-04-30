@@ -174,6 +174,15 @@ namespace minnet
         std::vector<float>::iterator grad_begin();
         std::vector<float>::iterator grad_end();
 
+        std::vector<float>::iterator bias_begin();
+        std::vector<float>::iterator bias_end();
+
+        std::vector<float>::iterator bias_grad_begin();
+        std::vector<float>::iterator bias_grad_end();
+
+        int bias_size();
+        void set_conv_bias(int num);
+
         void assignment(float other);
         void rand();
 
@@ -214,7 +223,7 @@ namespace minnet
 
         _Tensor& maxpool2d(size_t size);
         _Tensor& padding2d(size_t size);
-        _Tensor& conv2d(const _Tensor& kernel, int stride);
+        _Tensor& conv2d(const _Tensor& kernel, int stride_x, int stride_y);
         _Tensor& mean() const;
         _Tensor& dot2d(const _Tensor& other);
         _Tensor& pow(float s) const;
@@ -287,6 +296,8 @@ namespace minnet
         mutable std::shared_ptr<_Tensor> operand2 = nullptr;
         
         mutable std::vector<float> _grad = {};
+
+        mutable std::shared_ptr<_Tensor> bias = nullptr;
 
         mutable float const_operand1 = 0.f;
         mutable float const_operand2 = 0.f;
@@ -381,6 +392,27 @@ namespace minnet
         }
         std::vector<float>::iterator grad_end() {
             return _tensor->grad_end();
+        }
+
+        std::vector<float>::iterator bias_begin() {
+            return _tensor->bias_begin();
+        }
+        std::vector<float>::iterator bias_end() {
+            return _tensor->bias_end();
+        }
+        bool bias_size() {
+            return (_tensor->bias_size());
+        }
+
+        void set_conv_bias(int num) {
+            _tensor->set_conv_bias(num);
+        }
+
+        std::vector<float>::iterator bias_grad_begin() {
+            return _tensor->bias_grad_begin();
+        }
+        std::vector<float>::iterator bias_grad_end() {
+            return _tensor->bias_grad_end();
         }
 
         void assignment(float other) {
@@ -507,8 +539,8 @@ namespace minnet
         Tensor maxpool2d(size_t size = 2) {
             return Tensor(_tensor->maxpool2d(size));
         }
-        Tensor conv2d(const Tensor& other, int strided = 1) {
-            return Tensor(_tensor->conv2d(*(other._tensor), strided));
+        Tensor conv2d(const Tensor& other,int padding, int stride_x = 1, int stride_y = 1) {
+            return Tensor(padding2d(padding)._tensor->conv2d(*(other._tensor), stride_x, stride_y));
         }
         Tensor padding2d(int size) {
             return Tensor(_tensor->padding2d(size));

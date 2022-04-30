@@ -1,95 +1,106 @@
 ﻿// MinNet.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
 
-//#include "Function.hpp"
-#include "mnist.hpp"
+#include "Dataset.hpp"
 #include "Transformation.hpp"
 #include "Function.hpp"
+#include "Layer.hpp"
+#include "Optimizer.hpp"
 
+#include <chrono>
 #include <iostream>
+
+class Net :public minnet::Model {
+public:
+    Net() {
+        conv1 = minnet::Conv2d(3, 1);
+        conv2 = minnet::Conv2d(1, 3);
+        fc1 = minnet::Linear(1 * (7 * 7), 10);
+        push_layer(&conv1);
+        push_layer(&conv2);
+        push_layer(&fc1);
+    }
+    minnet::Tensor Forward(minnet::Tensor& input) override {
+        minnet::Tensor out = conv1(input);
+        out = minnet::Relu(out);
+        out = out.maxpool2d();
+        out = conv2(out);
+        out = minnet::Relu(out);
+        out = out.maxpool2d();
+        out = out.reshape(1, -1);
+        return fc1(out);
+    }
+private:
+    minnet::Conv2d conv1;
+    minnet::Conv2d conv2;
+    minnet::Linear fc1;
+};
 
 #define NUM 60000
 #define BATCH_SIZE 32
 
+#define SHOW_RESULT
+
 int main() {
-    auto src_data = readAndSave("D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-images-idx3-ubyte\\train-images.idx3-ubyte",
-        "D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-labels-idx1-ubyte\\train-labels.idx1-ubyte");
+    srand(clock());
+    auto src_data = load_mnist("D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-images-idx3-ubyte\\train-images.idx3-ubyte", 
+                                "D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-labels-idx1-ubyte\\train-labels.idx1-ubyte");
+   // auto src_data = load_cifa10("C:\\Users\\apple\\Downloads\\cifar-10-binary\\cifar-10-batches-bin");
+    std::vector<std::vector<float>> data(NUM);
+    std::vector<std::vector<float>> label(NUM);
 
-    std::vector<std::vector<float>> data(60000);
-    std::vector<std::vector<float>> label(60000);
-
-    for (int i = 0; i < 60000; i++) {
+    for (int i = 0; i < NUM; i++) {
         data[i] = image_to_vec(src_data[i].second);
         label[i] = std::vector<float>(10, 0.f);
         label[i][src_data[i].first] = 1.f;
     }
 
-
-    minnet::Tensor k1(3 * 784 / 4, 10);
-    minnet::Tensor b1(1, 10);
-    minnet::Tensor kernel(3, 3, 3);
-    k1.rand();
-    kernel.rand();
-    float lr = 0.001f;
-
+    //std::string classes[] = { "airplane" , "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
+    
+    Net net;
+    float lr = 0.0004f;
+    minnet::SGD opt(net.parameters(), lr);
+    
     for (int i = 0; i < 5 ; i++) {
         minnet::shuffle(&data, &label, &src_data);
-        for (int j = 0; j < 60000; j++) {
+        for (int j = 0; j < NUM; j++) {
             minnet::Tensor in;
             in.from_vector_2d(data, j, j + 1);
             minnet::Tensor real;
             real.from_vector_2d(label, j, j + 1);
-
             minnet::Tensor result = in.reshape(28, 28, 1);
-            result = result.padding2d(1);
-            result = result.conv2d(kernel);
-            result = result.maxpool2d();
-            result = result.reshape(1, -1);
-            result = minnet::Relu(result);
-            result = result.dot2d(k1) + b1;
+            result = net(result);
             real.reshape(1, 10);
             minnet::Tensor loss = minnet::CrossEntropyLoss(result, real);
-
             loss.zero_grad();
             loss.backward();
-
-            for (auto it1 = k1.begin(), it2 = k1.grad_begin(); it1 != k1.end(); it1++, it2++) {
-                *it1 = *it1 - lr * *it2;
-            }
-            for (auto it1 = b1.begin(), it2 = b1.grad_begin(); it1 != b1.end(); it1++, it2++) {
-                *it1 = *it1 - lr * *it2;
-            }
-            for (auto it1 = kernel.begin(), it2 = kernel.grad_begin(); it1 != kernel.end(); it1++, it2++) {
-                *it1 = *it1 - lr * *it2;
-            }
+            opt.step();
         }
         std::cout << "epoch: " << i + 1 << std::endl;
     }
+#ifdef SHOW_RESULT
     int count = 0;
-    for (int j = 0; j < 60000; j++) {
+    for (int j = 0; j < NUM; j++) {
         minnet::Tensor in;
         in.from_vector_2d(data, j, j + 1);
         minnet::Tensor real;
         real.from_vector_2d(label, j, j + 1);
         minnet::Tensor result = in.reshape(28, 28, 1);
-        result = result.padding2d(1);
-        result = result.conv2d(kernel);
-        result = result.maxpool2d();
-        result = result.reshape(1, -1);
-        result = minnet::Relu(result);
-        result = result.dot2d(k1) + b1;
+        result = net(result);
         real.reshape(1, 10);
         if (j < 20) {
             cv::Mat temp;
             cv::resize(src_data[j].second, temp, cv::Size(224, 224));
             cv::imshow("result", temp);
-            std::cout << minnet::argMax(result) << std::endl;
+            std::cout << "pred: " << minnet::argMax(result) << " real: ";
+            std::cout << minnet::argMax(real) << std::endl;
             cv::waitKey(0); 
+            cv::destroyWindow("result");
         }
         if (minnet::argMax(result) == minnet::argMax(real)) count++;
     }
-    cv::destroyWindow("result");
-    std::cout << "after train: " << count / 60000.f << std::endl;
+    std::cout << "after train: " << count / (NUM * 1.f) << std::endl;
+#endif // SHOW_RESULT
     return 0;
 }
 

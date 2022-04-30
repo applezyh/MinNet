@@ -65,7 +65,7 @@ namespace minnet
     }
 
     _Tensor::_Tensor(const std::vector<int> shape) :_size(1) {
-        _shape = std::vector<int>(shape);
+        _shape = shape;
         for (auto& v : shape) _size *= v;
         _data = std::vector<float>(_size, 0.f);
         _grad = std::vector<float>(_size, 0.f);
@@ -96,6 +96,32 @@ namespace minnet
         return _grad.end();
     }
 
+    std::vector<float>::iterator _Tensor::bias_begin() {
+        return bias->begin();
+    }
+
+    std::vector<float>::iterator _Tensor::bias_end() {
+        return bias->end();
+    }
+
+    std::vector<float>::iterator _Tensor::bias_grad_begin() {
+        return bias->grad_begin();
+    }
+
+    std::vector<float>::iterator _Tensor::bias_grad_end() {
+        return bias->grad_end();
+    }
+
+    int _Tensor::bias_size() {
+        if (bias == nullptr) return 0;
+        return bias->size();
+    }
+
+    void minnet::_Tensor::set_conv_bias(int num)
+    {
+        bias = std::make_shared<_Tensor>(num);
+    }
+
     void _Tensor::assignment(float other) {
         for (auto& v : _data) {
             v = other;
@@ -104,7 +130,7 @@ namespace minnet
 
     void _Tensor::rand() {
         for (auto& v : _data) {
-            v = (std::rand() % 1000 - 500) / 1000.f;
+            v = (std::rand() % 1000 - 500) / (1000.f * std::pow(_data.size(), 0.5));
         }
     }
 
@@ -520,51 +546,54 @@ namespace minnet
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
         else result.require_grad(false);
-        #pragma omp parallel for
         for (int i = size; i < result._shape[0] - size; i++) {
             for (int j = size; j < result._shape[1] - size; j++) {
-                for (int k = 0; k < _strided[2]; k++) {
-                    result._data[i * result._strided[0] + j * result._strided[1] + k] =
-                        _data[(i - size) * _strided[0] + (j - size) * _strided[1] + k];
+                for (int k = 0; k < result._shape[2]; k++) {
+                    result.at(i, j, k) = at(i - size, j - size, k);
                 }
             }
         }
         return result;
     }
 
-    _Tensor& _Tensor::conv2d(const _Tensor& kernel, int stride) {
-        if (_shape.size() != 3 || kernel._shape.size() != 3
-            || _shape[0] < kernel._shape[1] || _shape[1] < kernel._shape[2]
-            || kernel._shape[1] != kernel._shape[2])
+    _Tensor& _Tensor::conv2d(const _Tensor& kernel, int stride_x, int stride_y) {
+        if (_shape.size() != 3 || kernel._shape.size() != 4
+            || _shape[0] < kernel._shape[2] || _shape[1] < kernel._shape[3]
+            || _shape[2] != kernel._shape[1]
+            || kernel._shape[2] != kernel._shape[3])
         {
             throw TensorWrong(2, shape(), kernel.shape());
             return *this;
         }
-        int n = kernel._shape[0];
-        int kx = kernel._shape[1];
-        int ky = kernel._shape[2];
-        int ch = _shape[2];
-        _Tensor& result = *(new _Tensor(_shape[0] - kx + 1, _shape[1] - ky + 1, n));
+        int out_ch = kernel._shape[0];
+        int kx = kernel._shape[2];
+        int ky = kernel._shape[3];
+        int in_ch = _shape[2];
+        _Tensor& result = *(new _Tensor((_shape[0] - kx) / stride_x + 1, (_shape[1] - ky) / stride_y + 1, out_ch));
         result.opeartor = CONV2D;
         if (require_grad() || kernel.require_grad()) {
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
             result.operand2 = const_cast<_Tensor*>(&kernel)->shared_from_this();
-            result.const_operand1 = stride;
+            result.const_operand1 = stride_x;
+            result.const_operand2 = stride_y;
+            if (!kernel.bias) kernel.bias = std::make_shared<_Tensor>(_Tensor(out_ch));
         }
         else result.require_grad(false);
-        for (int t = 0; t < n; t++) {
+        int x = ((_shape[0] - kx) / stride_x) * stride_x;
+        int y = ((_shape[1] - ky) / stride_y) * stride_y;
+        for (int t = 0; t < out_ch; t++) {
             #pragma omp parallel for
-            for (int i = 0; i <= _shape[0] - kx; i += stride) {
-                for (int j = 0; j <= _shape[1] - ky; j += stride) {
+            for (int i = 0; i <= x; i += stride_x) {
+                for (int j = 0; j <= y; j += stride_y) {
                     float conv_result = 0.f;
-                    for (int k = 0; k < ch; k++) {
+                    for (int k = 0; k < in_ch; k++) {
                         for (int t1 = i; t1 < i + kx; t1++) {
                             for (int t2 = j; t2 < j + ky; t2++) {
-                                conv_result += at(t1, t2, k) * kernel.at(t, t1 - i, t2 - j);
+                                conv_result += at(t1, t2, k) * kernel.at(t, k, t1 - i, t2 - j);
                             }
-                        }
+                        }  
                     }
-                    result.at(i / stride, j / stride, t) = conv_result / ch;
+                    result.at(i / stride_x, j / stride_y, t) = conv_result + kernel.bias->at(t);
                 }
             }
         }
@@ -586,11 +615,11 @@ namespace minnet
             result.const_operand1 = size;
             result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
         }
-        int x = _shape[0] / size;
-        int y = _shape[1] / size;
+        int x = (_shape[0] / size) * size;
+        int y = (_shape[1] / size) * size;
         int ch = _shape[2];
-        for (int i = 0; i < x * size; i += size) {
-            for (int j = 0; j < y * size; j += size) {
+        for (int i = 0; i < x; i += size) {
+            for (int j = 0; j < y; j += size) {
                 for (int k = 0; k < ch; k++) {
                     float max = -INFINITY;
                     for (int t1 = i; t1 < i + size; t1++) {
@@ -732,6 +761,7 @@ namespace minnet
         }
         if (operand1) operand1->zero_grad();
         if (operand2) operand2->zero_grad();
+        if (bias) bias->zero_grad();
     }
 
     void _Tensor::backward(_Tensor grad, const std::vector<float>& dy_dx) {
@@ -884,12 +914,10 @@ namespace minnet
             std::vector<float> padding_dy_dx = std::vector<float>(operand1->_size, 1.f);
             int padding_size = static_cast<int>(const_operand1);
             _Tensor new_grad = _Tensor(operand1->_shape);
-            #pragma omp parallel for
             for (int i = 0; i < new_grad._shape[0]; i++) {
                 for (int j = 0; j < new_grad._shape[1]; j++) {
-                    for (int k = 0; k < new_grad._strided[2]; k++) {
-                        new_grad._data[i * new_grad._strided[0] + j * new_grad._strided[1] + k] =
-                            grad._data[(i + padding_size) * _strided[0] + (j + padding_size) * _strided[1] + k];
+                    for (int k = 0; k < new_grad._shape[2]; k++) {
+                        new_grad.at(i, j, k) = grad.at(i + padding_size, j + padding_size, k);
                     }
                 }
             }
@@ -899,50 +927,52 @@ namespace minnet
         case CONV2D: {
             if (!operand1 && !operand2) break;
             _Tensor kernel_grad = _Tensor(operand2->_shape);
-            _Tensor kernel_dy_dx = _Tensor(operand2->_shape);
             _Tensor conv2d_grad = _Tensor(operand1->_shape);
-            _Tensor conv2d_dy_dx = _Tensor(operand1->_shape);
+            _Tensor bias_grad = _Tensor(operand2->bias->_shape);
             kernel_grad.require_grad(false);
-            kernel_dy_dx.require_grad(false);
             conv2d_grad.require_grad(false);
-            conv2d_dy_dx.require_grad(false);
-            kernel_dy_dx.assignment(1.f);
-            conv2d_dy_dx.assignment(1.f);
+            bias_grad.require_grad(false);
 
             int in_ch = operand1->_shape[2];
-            int out_ch = grad._shape[2];
-            int kernel_x = kernel_grad._shape[1];
-            int kernel_y = kernel_grad._shape[2];
+            int out_ch = _shape[2];
+            int kernel_x = kernel_grad._shape[2];
+            int kernel_y = kernel_grad._shape[3];
 
+            int stride_x = const_operand1;
+            int stride_y = const_operand2;
+            int num = 0;
             int out_x = _shape[0];
             int out_y = _shape[1];
-            int num = 0;
             for (int t = 0; t < out_ch; t++) {
+                float ch_bias_grad = 0.f;
                 for (int i = 0; i < out_x; i++) {
                     for (int j = 0; j < out_y; j++) {
+                        float region_grad = grad.at(i, j, t);
+                        ch_bias_grad += region_grad;
                         for (int t1 = 0; t1 < in_ch; t1++) {
-                            for (int t2 = 0; t2 < kernel_grad._shape[1]; t2++) {
-                                for (int t3 = 0; t3 < kernel_grad._shape[2]; t3++) {
-                                    kernel_grad.at(t, t1, t2) += grad.at(i, j, t) * operand1->at(i + t2, j + t3, t1) / in_ch;   
+                            for (int t2 = 0; t2 < kernel_x; t2++) {
+                                for (int t3 = 0; t3 < kernel_y; t3++) {
+                                    kernel_grad.at(t, t1, t2, t3) += region_grad * operand1->at(i * stride_x + t2, j * stride_y + t3, t1);
                                 }
                             }
                         }
                         num++;
                         for (int t1 = 0; t1 < in_ch; t1++) {
-                            for (int t2 = 0; t2 < kernel_grad._shape[1]; t2++) {
-                                for (int t3 = 0; t3 < kernel_grad._shape[2]; t3++) {
-                                    conv2d_grad.at(i + t2, j + t3, t1) += kernel_grad.at(t, t2, t3) * grad.at(i, j, t);
+                            for (int t2 = 0; t2 < kernel_x; t2++) {
+                                for (int t3 = 0; t3 < kernel_y; t3++) {
+                                    conv2d_grad.at(i * stride_x + t2, j * stride_y + t3, t1) += operand2->at(t, t1, t2, t3) * region_grad;
                                 }
                             }
                         }
                     }
                 }
+                bias_grad.at(t) = ch_bias_grad;
             }
-            for (auto& param : kernel_grad) {
-                param /= num;
+            operand1->backward(conv2d_grad, std::vector<float>(operand1->_size, 1.f));
+            operand2->backward(kernel_grad, std::vector<float>(operand2->_size, 1.f));
+            for (int i = 0; i < bias_grad._size; i++) {
+                operand2->bias->_grad[i] += bias_grad._data[i];
             }
-            operand1->backward(conv2d_grad, conv2d_dy_dx._data);
-            operand2->backward(kernel_grad, kernel_dy_dx._data);
             break;
         }
         case MATMUL: {
@@ -953,8 +983,10 @@ namespace minnet
             r1.require_grad(false);
             r2.require_grad(false);
             _Tensor new_grad1 = grad.dot(r2);
+            new_grad1.require_grad(false);
             operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
             _Tensor new_grad2 = r1.dot(grad);
+            new_grad2.require_grad(false);
             operand2->backward(new_grad2, std::vector<float>(operand2->size(), 1.f));
             break;
         }
@@ -966,16 +998,17 @@ namespace minnet
         }
         case MAXPOOL: {
             if (!operand1) break;
-            int scale = const_operand1;
+            int scale = static_cast<int>(const_operand1);
             _Tensor new_grad(operand1->_shape);
-            for (int i = 0; i < grad._shape[0]; i ++) {
-                for (int j = 0; j < grad._shape[1]; j++) {
-                    for (int k = 0; i < grad._shape[2]; i++) {
+            for (int i = 0; i < _shape[0]; i++) {
+                for (int j = 0; j < _shape[1]; j++) {
+                    for (int k = 0; k < _shape[2]; k++) {
                         bool flag = 1;
-                        for (int t1 = i; t1 < scale && flag; t1++) {
-                            for (int t2 = j; t2 < scale && flag; t2++) {
-                                if (operand1->at(t1, t2, k) == at(i, j, k)) {
-                                    new_grad.at(t1, t2, k) = new_grad.at(i, j, k);
+                        float max = at(i, j, k);
+                        for (int t1 = i * scale; t1 < i * scale + scale && flag; t1++) {
+                            for (int t2 = j * scale; t2 < j * scale + scale && flag; t2++) {
+                                if (operand1->at(t1, t2, k) == max) {
+                                    new_grad.at(t1, t2, k) = grad.at(i, j, k);
                                     flag = 0;
                                 }
                             }

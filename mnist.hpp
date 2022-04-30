@@ -9,7 +9,7 @@
 #include <vector>
 #include <utility>
 
-std::vector<std::pair<int, cv::Mat>> readAndSave(const std::string& mnist_img_path, const std::string& mnist_label_path);
+std::vector<std::pair<int, cv::Mat>> load_mnist(const std::string& mnist_img_path, const std::string& mnist_label_path);
 
 std::vector<float> image_to_vec(cv::Mat& m);
 
