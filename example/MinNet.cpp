@@ -21,10 +21,10 @@ public:
     minnet::Tensor Forward(minnet::Tensor input) override {
         minnet::Tensor out = conv1(input);
         out = minnet::Relu(out);
-        out = out.maxpool2d();
+        out = minnet::MaxPool2d(out);
         out = conv2(out);
         out = minnet::Relu(out);
-        out = out.maxpool2d();
+        out = minnet::MaxPool2d(out);
         out = out.reshape(1, -1);
         return fc1(out);
     }

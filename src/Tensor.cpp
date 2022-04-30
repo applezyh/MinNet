@@ -532,10 +532,11 @@ namespace minnet
         return result;
     }
 
-    _Tensor& _Tensor::padding2d(size_t size) {
+    _Tensor& _Tensor::padding2d(size_t size) const {
         if (_shape.size() != 3) {
+            _Tensor ret;
             throw TensorWrong(2, shape(), shape());
-            return *this;
+            return ret;
         }
         std::vector<int> new_shape = _shape;
         new_shape[0] += 2 * size;
@@ -557,14 +558,15 @@ namespace minnet
         return result;
     }
 
-    _Tensor& _Tensor::conv2d(const _Tensor& kernel, int stride_x, int stride_y) {
+    _Tensor& _Tensor::conv2d(const _Tensor& kernel, int stride_x, int stride_y) const {
         if (_shape.size() != 3 || kernel._shape.size() != 4
             || _shape[0] < kernel._shape[2] || _shape[1] < kernel._shape[3]
             || _shape[2] != kernel._shape[1]
             || kernel._shape[2] != kernel._shape[3])
         {
+            _Tensor ret;
             throw TensorWrong(2, shape(), kernel.shape());
-            return *this;
+            return ret;
         }
         int out_ch = kernel._shape[0];
         int kx = kernel._shape[2];
@@ -601,11 +603,12 @@ namespace minnet
         return result;
     }
 
-    _Tensor& _Tensor::maxpool2d(size_t size) {
+    _Tensor& _Tensor::maxpool2d(size_t size)  const {
         if (_shape.size() != 3 || _shape[0] < size || _shape[1] < size)
         {
+            _Tensor ret;
             throw TensorWrong(2, shape(), shape());
-            return *this;
+            return ret;
         }
         std::vector<int> new_shape = shape();
         new_shape[0] /= size;

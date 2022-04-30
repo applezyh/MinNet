@@ -26,4 +26,8 @@ namespace minnet
 		Tensor exp = (tensor - tensor.max()).rpow(E);
 		return exp / exp.rowsum();
 	}
+
+	Tensor MaxPool2d(const Tensor& tensor, int size) {
+		return tensor.maxpool2d(size);
+	}
 } // namespace minnet

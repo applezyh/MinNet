@@ -11,6 +11,7 @@ namespace minnet
 	Tensor Relu(const Tensor& tensor);
 	Tensor Sigmoid(const Tensor& tensor);
 	Tensor SoftMax(const Tensor& tensor);
+    Tensor MaxPool2d(const Tensor& tensor, int size = 2);
 
     template<typename T1, typename T2, typename T3>
     void shuffle(std::vector<T1>* v1, std::vector<T2>* v2 = nullptr, std::vector<T3>* v3 = nullptr) {
