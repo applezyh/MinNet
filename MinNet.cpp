@@ -7,20 +7,19 @@
 #include "Layer.hpp"
 #include "Optimizer.hpp"
 
-#include <chrono>
 #include <iostream>
 
 class Net :public minnet::Model {
 public:
     Net() {
         conv1 = minnet::Conv2d(3, 1);
-        conv2 = minnet::Conv2d(1, 3);
-        fc1 = minnet::Linear(1 * (7 * 7), 10);
-        push_layer(&conv1);
-        push_layer(&conv2);
-        push_layer(&fc1);
+        conv2 = minnet::Conv2d(3, 3);
+        fc1 = minnet::Linear(3 * (7 * 7), 10);
+        add_layer(&conv1);
+        add_layer(&conv2);
+        add_layer(&fc1);
     }
-    minnet::Tensor Forward(minnet::Tensor& input) override {
+    minnet::Tensor Forward(minnet::Tensor input) override {
         minnet::Tensor out = conv1(input);
         out = minnet::Relu(out);
         out = out.maxpool2d();

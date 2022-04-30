@@ -31,7 +31,7 @@ namespace minnet
 		return std::vector<Tensor*>{&param};
 	}
 
-	void Model::push_layer(Layer* layer) {
+	void Model::add_layer(Layer* layer) {
 		layer_list.push_back(layer);
 	}
 	std::list<Tensor*>  Model::parameters() {
@@ -43,7 +43,7 @@ namespace minnet
 		}
 		return ret;
 	}
-	Tensor  Model::operator()(Tensor& input) {
+	Tensor  Model::operator()(Tensor input) {
 		return Forward(input);
 	}
 

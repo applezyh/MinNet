@@ -4,10 +4,12 @@
 #include <iostream>
 #include <vector>
 
-constexpr float E  = 2.718281828459045235360287471352662497757247093f;
+
 
 namespace minnet
 {
+    constexpr float E  = 2.718281828459045235360287471352662497757247093f;
+
     enum {
         ADD,
         SUB,
