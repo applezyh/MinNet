@@ -2,9 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 project(minnet)
 
-
-
-
+# adapt operation system
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	set(linux ON)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
