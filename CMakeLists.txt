@@ -27,6 +27,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
+add_definitions("-fconcepts")
 
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 

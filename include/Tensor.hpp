@@ -1,6 +1,7 @@
 #ifndef TENSOR_H_
 #define TENSOR_H_
 
+#include <memory>
 #include <iostream>
 #include <vector>
 
@@ -357,7 +358,7 @@ namespace minnet
 
         template<typename T, typename... Args> requires (std::is_same_v<T, int> || std::is_same_v<T, unsigned int>)
         void transpose(const T& arg, const Args&... args) {
-            _tensor->transpose(arg, args);
+            _tensor->transpose(arg, args...);
         }
 
         float& at(const std::vector<int>& indexs) {

@@ -1,4 +1,5 @@
 #include "Tensor.hpp"
+#include <cmath>
 #include <omp.h>
 
 constexpr float delta = 1e-7;

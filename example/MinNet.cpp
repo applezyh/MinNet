@@ -34,15 +34,14 @@ private:
     minnet::Linear fc1;
 };
 
-#define NUM 60000
+#define NUM 600
 #define BATCH_SIZE 32
 
 #define SHOW_RESULT
 
 int main() {
     srand(clock());
-    auto src_data = load_mnist("D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-images-idx3-ubyte\\train-images.idx3-ubyte", 
-                                "D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\train-labels-idx1-ubyte\\train-labels.idx1-ubyte");
+    auto src_data = load_mnist("/media/sf_train-images-idx3-ubyte/train-images.idx3-ubyte", "/media/sf_train-labels-idx1-ubyte/train-labels.idx1-ubyte");
    // auto src_data = load_cifa10("C:\\Users\\apple\\Downloads\\cifar-10-binary\\cifar-10-batches-bin");
     std::vector<std::vector<float>> data(NUM);
     std::vector<std::vector<float>> label(NUM);

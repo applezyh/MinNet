@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "cifa10.hpp"
 
 static uint32_t swap_endian(uint32_t val)
@@ -7,7 +9,7 @@ static uint32_t swap_endian(uint32_t val)
 }
 
 std::vector<std::pair<int, cv::Mat>> result(60000);
-int index = 0;
+int result_index = 0;
 
 void load_cifa10_bacth(const std::string& cifa10_img_path, size_t batch_size) {
     //以二进制格式读取cifa10数据库中的图像文件和标签文件  
@@ -34,7 +36,7 @@ void load_cifa10_bacth(const std::string& cifa10_img_path, size_t batch_size) {
                 }
             }
         }
-        result[index++] = (std::pair<int, cv::Mat>((int)label, std::move(image)));
+        result[result_index++] = (std::pair<int, cv::Mat>((int)label, std::move(image)));
     }
     cifa10_image.close();
 }
@@ -42,7 +44,7 @@ void load_cifa10_bacth(const std::string& cifa10_img_path, size_t batch_size) {
 std::vector<std::pair<int, cv::Mat>> load_cifa10(const std::string& cifa10_img_dir) {
     for (int i = 1; i <= 5; i++) {
         char file[512];
-        sprintf_s(file, "%s\\data_batch_%d.bin", cifa10_img_dir.c_str(), i);
+        sprintf(file, "%s\\data_batch_%d.bin", cifa10_img_dir.c_str(), i);
         load_cifa10_bacth(file, 10000);
     }
     std::vector<std::pair<int, cv::Mat>> ret = std::move(result);
