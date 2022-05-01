@@ -1,6 +1,5 @@
 #include "Tensor.hpp"
 #include <cmath>
-#include <omp.h>
 
 constexpr float delta = 1e-7;
 
@@ -521,7 +520,6 @@ namespace minnet
         }
         else result.require_grad(false);
 
-        #pragma omp parallel for
         for (int i = 0; i < _shape[0]; i++) {
             for (int j = 0; j < t._shape[1]; j++) {
                 for (int k = 0; k < _shape[1]; k++) {
@@ -585,7 +583,6 @@ namespace minnet
         int x = ((_shape[0] - kx) / stride_x) * stride_x;
         int y = ((_shape[1] - ky) / stride_y) * stride_y;
         for (int t = 0; t < out_ch; t++) {
-            #pragma omp parallel for
             for (int i = 0; i <= x; i += stride_x) {
                 for (int j = 0; j <= y; j += stride_y) {
                     float conv_result = 0.f;
