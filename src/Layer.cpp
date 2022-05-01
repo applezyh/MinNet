@@ -2,9 +2,15 @@
 
 namespace minnet
 {
-	Tensor minnet::Layer::operator()(Tensor& input)
+	Tensor Layer::operator()(Tensor& input)
 	{
 		return Forward(input);
+	}
+	void Layer::train() {
+		_train = 1;
+	}
+	void Layer::eval() {
+		_train = 0;
 	}
 	Linear::Linear(int input, int output) {
 		param = Tensor(input, output);
@@ -31,6 +37,19 @@ namespace minnet
 		return std::vector<Tensor*>{&param};
 	}
 
+	DropOut::DropOut(float proportion) : proportion(proportion) {
+
+	}
+
+	Tensor DropOut::Forward(Tensor& tensor) {
+		if (_train) return tensor.dropout(proportion);
+		else return tensor;
+	}
+
+	std::vector<Tensor*> DropOut::get_param() {
+		return std::vector<Tensor*>();
+	}
+
 	void Model::add_layer(Layer* layer) {
 		layer_list.push_back(layer);
 	}
@@ -45,6 +64,12 @@ namespace minnet
 	}
 	Tensor  Model::operator()(Tensor input) {
 		return Forward(input);
+	}
+	void Model::train() {
+		for (auto& layer : layer_list) layer->train();
+	}
+	void Model::eval() {
+		for (auto& layer : layer_list) layer->eval();
 	}
 
 } // namespace minnet

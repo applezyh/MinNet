@@ -1,4 +1,6 @@
 #include "Tensor.hpp"
+#include "Util.hpp"
+
 #include <cmath>
 
 constexpr float delta = 1e-7;
@@ -530,6 +532,18 @@ namespace minnet
         return result;
     }
 
+    _Tensor& minnet::_Tensor::dropout(float proportion) const {
+        _Tensor& result = *(new _Tensor(shape()));
+        result.opeartor = DROPOUT;
+        if (require_grad()) {
+            result.operand1 = const_cast<_Tensor*>(this)->shared_from_this();
+        }
+        for (int i = 0; i < size(); i++) {
+            result._data[i] = ((std::rand() % 1000) / 1000.f) < proportion ? 0.f : _data[i];
+        }
+        return result;
+    }
+
     _Tensor& _Tensor::padding2d(size_t size) const {
         if (_shape.size() != 3) {
             _Tensor ret;
@@ -910,6 +924,15 @@ namespace minnet
             operand1->backward(grad, relu_dy_dx);
             break;
         } 
+        case DROPOUT: {
+            if (!operand1) break;
+            std::vector<float> drop_dy_dx = std::vector<float>(operand1->_size);
+            for (int i = 0; i < drop_dy_dx.size(); i++) {
+                drop_dy_dx[i] = _data[i] == 0.f ? 0.f : 1.f;
+            }
+            operand1->backward(grad, drop_dy_dx);
+            break;
+        }
         case PADDING: {
             if (!operand1) break;
             std::vector<float> padding_dy_dx = std::vector<float>(operand1->_size, 1.f);
@@ -957,7 +980,14 @@ namespace minnet
                                 }
                             }
                         }
-                        num++;
+                    }
+                }
+                bias_grad.at(t) = ch_bias_grad;
+            }
+            for (int t = 0; t < out_ch; t++) {
+                for (int i = 0; i < out_x; i++) {
+                    for (int j = 0; j < out_y; j++) {
+                        float region_grad = grad.at(i, j, t);
                         for (int t1 = 0; t1 < in_ch; t1++) {
                             for (int t2 = 0; t2 < kernel_x; t2++) {
                                 for (int t3 = 0; t3 < kernel_y; t3++) {
@@ -967,7 +997,6 @@ namespace minnet
                         }
                     }
                 }
-                bias_grad.at(t) = ch_bias_grad;
             }
             operand1->backward(conv2d_grad, std::vector<float>(operand1->_size, 1.f));
             operand2->backward(kernel_grad, std::vector<float>(operand2->_size, 1.f));
@@ -985,9 +1014,9 @@ namespace minnet
             r2.require_grad(false);
             _Tensor new_grad1 = grad.dot(r2);
             new_grad1.require_grad(false);
-            operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
             _Tensor new_grad2 = r1.dot(grad);
             new_grad2.require_grad(false);
+            operand1->backward(new_grad1, std::vector<float>(operand1->size(), 1.f));
             operand2->backward(new_grad2, std::vector<float>(operand2->size(), 1.f));
             break;
         }
