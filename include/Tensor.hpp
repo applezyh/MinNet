@@ -27,7 +27,8 @@ namespace minnet
         CONV2D,
         PADDING,
         RESHAPE,
-        MAXPOOL
+        MAXPOOL,
+        DROPOUT
     };
 
 
@@ -224,6 +225,7 @@ namespace minnet
         void from_vector_1d(const std::vector<float>& v, int s = 0, int e = -1);
         void from_vector_2d(const std::vector<std::vector<float>>& v, int s = 0, int e = -1);
 
+        _Tensor& dropout(float proportion) const;
         _Tensor& maxpool2d(size_t size) const;
         _Tensor& padding2d(size_t size) const;
         _Tensor& conv2d(const _Tensor& kernel, int stride_x, int stride_y) const;
@@ -538,6 +540,9 @@ namespace minnet
         }
         void from_vector_2d(const std::vector<std::vector<float>>& v, int s = 0, int e = -1) {
             _tensor->from_vector_2d(v, s, e);
+        }
+        Tensor dropout(float proportion) const {
+            return Tensor(_tensor->dropout(proportion));
         }
         Tensor maxpool2d(size_t size = 2) const {
             return Tensor(_tensor->maxpool2d(size));

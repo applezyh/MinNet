@@ -9,8 +9,11 @@ namespace minnet
 	public:
 		virtual Tensor Forward(Tensor& tensor) = 0;
 		virtual std::vector<Tensor*> get_param() = 0;
+		void train();
+		void eval();
 		Tensor operator()(Tensor& input);
 		Tensor param;
+		bool _train = 1;
 	};
 
 	class Linear : public Layer {
@@ -33,12 +36,23 @@ namespace minnet
 		int padding, stride_x, stride_y;
 	};
 
+	class DropOut : public Layer {
+	public:
+		DropOut() :proportion(0.5f) {}
+		DropOut(float proportion);
+		Tensor Forward(Tensor& tensor) override;
+		std::vector<Tensor*> get_param() override;
+	private:
+		float proportion;
+	};
+
 	class Model {
 	public:
 		void add_layer(Layer* layer);
 		std::list<Tensor*> parameters();
 		Tensor operator()(Tensor input);
-		
+		void train();
+		void eval();
 		virtual Tensor Forward(Tensor input) = 0;
 	private:
 		std::list<Layer*> layer_list;
