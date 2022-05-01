@@ -25,7 +25,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "-O2 -fconcepts")
+set(CMAKE_CXX_FLAGS "-w -O2 -fconcepts")
 
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 

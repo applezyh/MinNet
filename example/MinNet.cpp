@@ -46,16 +46,15 @@ private:
 #define SHOW_RESULT
 
 int main(int argc, char**argv) {
-    if(argc != 3){
+    if(argc != 5){
         std::cout<<"must input mnist dataset data path and label path"<<std::endl;
         return 0;
     }
+
     auto src_data = load_mnist(argv[1], argv[2]);
+    auto test_data = load_mnist(argv[3], argv[4]);
 
-    auto test_data = load_mnist("D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\t10k-images.idx3-ubyte", 
-        "D:\\BaiduNetdiskDownload\\mnist_dataset\\mnist_dataset\\t10k-labels.idx1-ubyte");
-
-    if (src_data.size() != 60000) {
+    if (src_data.size() != 60000 || test_data.size() != 10000) {
         std::cout<<"read dataset erro!"<<std::endl;
         return 0;
     }
@@ -83,7 +82,7 @@ int main(int argc, char**argv) {
     minnet::SGD opt(net.parameters(), lr, 0.9f);
     Timer timer;
     net.train();
-    for (int i = 0; i < 5 ; i++) {
+    for (int i = 0; i < 10 ; i++) {
         minnet::shuffle(&data, &label, &src_data);
         float forward_time = 0.f;
         float backward_time = 0.f;
@@ -109,20 +108,8 @@ int main(int argc, char**argv) {
         std::cout << "epoch: " << i + 1 << " forward cost: " << forward_time << " backward cost: " << backward_time << std::endl;
     }
 #ifdef SHOW_RESULT
-    int count = 0;
-    for (int j = 0; j < TEST_NUM; j++) {
-        minnet::Tensor in;
-        in.from_vector_2d(test, j, j + 1);
-        minnet::Tensor real;
-        real.from_vector_2d(test_label, j, j + 1);
-        minnet::Tensor result = in.reshape(28, 28, 1);
-        result = net(result);
-        real.reshape(1, 10);
-        if (minnet::argMax(result) == minnet::argMax(real)) count++;
-    }
-    std::cout << "after train without eval: " << count / (TEST_NUM * 1.f) << std::endl;
     net.eval();
-    count = 0;
+    int count = 0;
     for (int j = 0; j < TEST_NUM; j++) {
         minnet::Tensor in;
         in.from_vector_2d(test, j, j + 1);
